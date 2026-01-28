@@ -82,6 +82,88 @@ CREATE TABLE IF NOT EXISTS signatures (
   FOREIGN KEY (client_id) REFERENCES clients(id)
 );
 
+-- EFILE_SUBMISSIONS (e-file tracking for IRS acknowledgments)
+CREATE TABLE IF NOT EXISTS efile_submissions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  submission_id TEXT UNIQUE NOT NULL,
+  client_id INTEGER NOT NULL,
+  return_id INTEGER,
+  status TEXT NOT NULL DEFAULT 'pending',
+  ack_timestamp TEXT,
+  errors TEXT,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (client_id) REFERENCES clients(id),
+  FOREIGN KEY (return_id) REFERENCES returns(id)
+);
+
+-- PAYMENTS (payment tracking for workflow webhooks)
+CREATE TABLE IF NOT EXISTS payments (
+  id TEXT PRIMARY KEY,
+  client_id INTEGER NOT NULL,
+  transaction_id TEXT UNIQUE NOT NULL,
+  amount REAL NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  payment_method TEXT,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (client_id) REFERENCES clients(id)
+);
+
+-- CLIENT_CREDENTIALS (encrypted credential storage)
+CREATE TABLE IF NOT EXISTS client_credentials (
+  id TEXT PRIMARY KEY,
+  client_id INTEGER NOT NULL,
+  return_id INTEGER,
+  credential_type TEXT NOT NULL,
+  encrypted_data TEXT NOT NULL,
+  uploaded_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (client_id) REFERENCES clients(id),
+  FOREIGN KEY (return_id) REFERENCES returns(id)
+);
+
+-- IRS_MEMOS (IRS memo tracking - realtime integration)
+CREATE TABLE IF NOT EXISTS irs_memos (
+  id TEXT PRIMARY KEY,
+  source TEXT NOT NULL,
+  irs_id TEXT UNIQUE NOT NULL,
+  title TEXT NOT NULL,
+  summary TEXT,
+  full_text TEXT,
+  published_at TEXT,
+  url TEXT,
+  tags_json TEXT,
+  status TEXT NOT NULL DEFAULT 'active',
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+-- IRS_SCHEMA_FIELDS (IRS schema field tracking - realtime integration)
+CREATE TABLE IF NOT EXISTS irs_schema_fields (
+  id TEXT PRIMARY KEY,
+  form_type TEXT NOT NULL,
+  tax_year INTEGER NOT NULL,
+  field_name TEXT NOT NULL,
+  field_path TEXT,
+  field_type TEXT,
+  description TEXT,
+  status TEXT NOT NULL DEFAULT 'active',
+  detected_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+-- IRS_MEMO_LINKS (linking memos to clients/returns)
+CREATE TABLE IF NOT EXISTS irs_memo_links (
+  id TEXT PRIMARY KEY,
+  memo_id TEXT NOT NULL,
+  client_id INTEGER,
+  return_id INTEGER,
+  topic TEXT,
+  note TEXT,
+  created_by TEXT,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (memo_id) REFERENCES irs_memos(id),
+  FOREIGN KEY (client_id) REFERENCES clients(id),
+  FOREIGN KEY (return_id) REFERENCES returns(id)
+);
+
 -- TRAINING MODULE
 CREATE TABLE IF NOT EXISTS training_courses (
   id TEXT PRIMARY KEY,

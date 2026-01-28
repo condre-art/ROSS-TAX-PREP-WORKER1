@@ -17,16 +17,31 @@ import {
   handleInstagramDM
 } from "./src/instagram.js";
 import { handleScheduledIRSSync, handleAuditLogProcessing } from "./utils";
+import { handleIrsCallback } from "./handlers/irs-callback";
+import { handlePaymentWebhook } from "./handlers/payment-webhook";
+import { handleCredentialUpload } from "./handlers/credential-upload";
+import { handleIrsRealtimeSchema, handleIrsRealtimeMemo, getIrsRealtimeStatus } from "./handlers/irs-realtime";
 
 // --- Global Variable ---
 let seeded = false;
 
-// --- JWT Authentication Helper ---
+// --- Type Interfaces ---
 interface AuthenticatedUser {
   id: number;
   email: string;
   role: string;
   name?: string;
+}
+
+interface DocuSignEnvelope {
+  envelopeId: string;
+  [key: string]: any;
+}
+
+interface IrsResponse {
+  access_token?: string;
+  url?: string;
+  [key: string]: any;
 }
 
 async function verifyAuth(req: Request, env: any): Promise<AuthenticatedUser | null> {
@@ -112,8 +127,8 @@ async function getDocuSignAccessToken(env: any) {
     body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwtToken}`
   });
   if (!res.ok) throw new Error("Failed to obtain DocuSign access token");
-  const data = await res.json();
-  return data.access_token;
+  const data = await res.json() as IrsResponse;
+  return data.access_token || "";
 }
 
 // --- Audit Log Handlers ---
@@ -176,7 +191,7 @@ async function handleGetRefundStatus(req: Request, env: any) {
 
 async function handleUpdateRefundStatus(req: Request, env: any) {
   const id = req.url.split("/").pop();
-  const body = await req.json();
+  const body = await req.json() as Record<string, any>;
   const fields = ["irs_refund_status", "refund_method", "refund_amount", "refund_disbursed_at", "refund_trace_id", "refund_notes"];
   const updates = [];
   const params = [];
@@ -194,8 +209,8 @@ async function handleUpdateRefundStatus(req: Request, env: any) {
 
 // --- IRS Memo Handlers ---
 async function updateIrsMemo(request: Request, env: any) {
-  const id = request.params?.id || request.url.split("/")[4];
-  const body = await request.json();
+  const id = request.url.split("/")[4];
+  const body = await request.json() as Record<string, any>;
   const fields = ["title", "summary", "full_text", "url", "tags", "status", "published_at"];
   const updates = [];
   const params = [];
@@ -220,7 +235,7 @@ async function updateIrsMemo(request: Request, env: any) {
 }
 
 async function deleteIrsMemo(request: Request, env: any) {
-  const id = request.params?.id || request.url.split("/")[4];
+  const id = request.url.split("/")[4];
   await env.DB.prepare(`UPDATE irs_memos SET status = 'deleted' WHERE id = ?`).bind(id).run();
   await env.DB.prepare(`INSERT INTO audit_log (action, entity, entity_id, details, created_at) VALUES (?, ?, ?, ?, datetime('now'))`).bind(
     "delete", "irs_memo", id, null
@@ -294,7 +309,7 @@ async function listIrsMemos(request: Request, env: any) {
 }
 
 async function getIrsMemo(request: Request, env: any) {
-  const id = request.params?.id || request.url.split("/").pop();
+  const id = request.url.split("/").pop();
   const memo = await env.DB.prepare(
     "SELECT * FROM irs_memos WHERE id = ?"
   ).bind(id).first();
@@ -306,8 +321,8 @@ async function getIrsMemo(request: Request, env: any) {
 }
 
 async function linkIrsMemo(request: Request, env: any) {
-  const memoId = request.params?.id || request.url.split("/")[3];
-  const body = await request.json();
+  const memoId = request.url.split("/")[3];
+  const body = await request.json() as Record<string, any>;
   const id = uuid();
   await env.DB.prepare(
     `INSERT INTO irs_memo_links 
@@ -345,7 +360,7 @@ async function listIrsSchemaFields(request: Request, env: any) {
 // --- DocuSign Handlers ---
 async function handleCreateEnvelope(request: Request, env: any, user: any) {
   requireRole(user, ["admin", "staff"]);
-  const { client_id, name, email, documentBase64 } = await request.json();
+  const { client_id, name, email, documentBase64 } = await request.json() as Record<string, any>;
   const accessToken = await getDocuSignAccessToken(env);
   const envelopeBody = {
     emailSubject: "Ross Tax Prep – Engagement Letter",
@@ -393,7 +408,7 @@ async function handleCreateEnvelope(request: Request, env: any, user: any) {
     const err = await res.text();
     return new Response(err, { status: 500 });
   }
-  const envelope = await res.json();
+  const envelope = await res.json() as DocuSignEnvelope;
   await env.DB.prepare(
     `INSERT INTO signatures (client_id, envelope_id, status)
      VALUES (?, ?, ?)`
@@ -406,7 +421,7 @@ async function handleCreateEnvelope(request: Request, env: any, user: any) {
 
 async function handleEmbeddedSigningUrl(request: Request, env: any, user: any) {
   requireRole(user, ["admin", "staff", "client"]);
-  const { envelopeId, client_id, name, email } = await request.json();
+  const { envelopeId, client_id, name, email } = await request.json() as Record<string, any>;
   const accessToken = await getDocuSignAccessToken(env);
   const body = {
     returnUrl: env.DOCUSIGN_REDIRECT_URL,
@@ -430,7 +445,7 @@ async function handleEmbeddedSigningUrl(request: Request, env: any, user: any) {
     const err = await res.text();
     return new Response(err, { status: 500 });
   }
-  const data = await res.json();
+  const data = await res.json() as Record<string, any>;
   return Response.json({ url: data.url });
 }
 
@@ -439,9 +454,9 @@ async function handleDocuSignWebhook(req: Request, env: any) {
   if (secret !== env.DOCUSIGN_WEBHOOK_SECRET)
     return new Response("Unauthorized", { status: 401 });
 
-  let body;
+  let body: Record<string, any>;
   try {
-    body = await req.json();
+    body = await req.json() as Record<string, any>;
   } catch {
     return new Response("Invalid JSON", { status: 400 });
   }
@@ -477,7 +492,7 @@ async function handleSignatures(request: Request, env: any, user: any) {
 
 // --- Auth Handlers ---
 async function handleRegisterStaff(req: Request, env: any) {
-  const { name, email, password, role } = await req.json();
+  const { name, email, password, role } = await req.json() as Record<string, any>;
   if (!name || !email || !password || !role) return new Response("Missing fields", { status: 400 });
   const password_hash = await bcrypt.hash(password, 10);
   try {
@@ -491,7 +506,7 @@ async function handleRegisterStaff(req: Request, env: any) {
 }
 
 async function handleRegisterClient(req: Request, env: any) {
-  const { name, email, password, phone } = await req.json();
+  const { name, email, password, phone } = await req.json() as Record<string, any>;
   if (!name || !email || !password) return new Response("Missing fields", { status: 400 });
   const password_hash = await bcrypt.hash(password, 10);
   try {
@@ -505,7 +520,7 @@ async function handleRegisterClient(req: Request, env: any) {
 }
 
 async function handleLoginStaff(req: Request, env: any) {
-  const { email, password } = await req.json();
+  const { email, password } = await req.json() as Record<string, any>;
   const user = await env.DB.prepare("SELECT * FROM staff WHERE email = ?").bind(email).first();
   if (!user) return new Response("Invalid credentials", { status: 401 });
   const valid = await bcrypt.compare(password, user.password_hash);
@@ -514,7 +529,7 @@ async function handleLoginStaff(req: Request, env: any) {
 }
 
 async function handleLoginClient(req: Request, env: any) {
-  const { email, password } = await req.json();
+  const { email, password } = await req.json() as Record<string, any>;
   const user = await env.DB.prepare("SELECT * FROM clients WHERE email = ?").bind(email).first();
   if (!user) return new Response("Invalid credentials", { status: 401 });
   const valid = await bcrypt.compare(password, user.password_hash);
@@ -529,7 +544,7 @@ async function listTrainingCourses(request: Request, env: any) {
 }
 
 async function enrollTrainingCourse(request: Request, env: any) {
-  const body = await request.json();
+  const body = await request.json() as Record<string, any>;
   const id = uuid();
   await env.DB.prepare(
     `INSERT INTO training_enrollments (id, course_id, student_email, student_name, notes)
@@ -620,6 +635,30 @@ export default {
       return await mfaVerifyRoute(req, env);
     }
 
+    // --- Workflow Callback Handlers ---
+    if (url.pathname === "/api/irs-callback" && req.method === "POST") {
+      return cors(await handleIrsCallback(req, env));
+    }
+    if (url.pathname === "/api/payment-webhook" && req.method === "POST") {
+      return cors(await handlePaymentWebhook(req, env));
+    }
+    if (url.pathname === "/api/credential-upload" && req.method === "POST") {
+      return cors(await handleCredentialUpload(req, env));
+    }
+
+    // --- IRS Real-time Integration Endpoints ---
+    if (url.pathname === "/api/irs/realtime/schema" && req.method === "POST") {
+      return cors(await handleIrsRealtimeSchema(req, env));
+    }
+    if (url.pathname === "/api/irs/realtime/memo" && req.method === "POST") {
+      return cors(await handleIrsRealtimeMemo(req, env));
+    }
+    if (url.pathname === "/api/irs/realtime/status" && req.method === "GET") {
+      return cors(new Response(JSON.stringify(getIrsRealtimeStatus()), {
+        headers: { "Content-Type": "application/json" }
+      }));
+    }
+
     // --- Client Refund Tracker Endpoints ---
     if (url.pathname === "/api/client/refunds" && req.method === "GET") {
       const user = await verifyAuth(req, env);
@@ -669,7 +708,7 @@ export default {
     // PATCH /api/efile/transmit/:id — Update e-file with bank product/payment info
     if (url.pathname.startsWith("/api/efile/transmit/") && req.method === "PATCH") {
       const id = url.pathname.split("/").pop();
-      const body = await req.json();
+      const body = await req.json() as Record<string, any>;
       await env.DB.prepare(
         `UPDATE efile_transmissions SET bank_product_id = ?, payment_method = ?, payment_details_json = ?, updated_at = ? WHERE id = ?`
       ).bind(
@@ -684,7 +723,7 @@ export default {
 
     // POST /api/efile/transmit — Initiate e-file transmission
     if (url.pathname === "/api/efile/transmit" && req.method === "POST") {
-      const body = await req.json();
+      const body = await req.json() as Record<string, any>;
       const id = uuid();
       const now = new Date().toISOString();
       const transmission = {
@@ -826,18 +865,7 @@ export default {
       const returnId = url.pathname.split("/")[3];
       const sql = `SELECT m.* FROM irs_memos m JOIN irs_memo_links l ON m.id = l.memo_id WHERE l.return_id = ? ORDER BY m.published_at DESC`;
       const rows = await env.DB.prepare(sql).bind(returnId).all();
-      const memos = rows.results.map(memo => ({ ...memo, tags: memo.tags_json ? JSON.parse(memo.tags_json) : [] }));
-      return new Response(JSON.stringify(memos), { headers: { "Content-Type": "application/json" } });
-    }
-    if (url.pathname === "/admin/irs/schema" && req.method === "GET") {
-      return await listIrsSchemaFields(req, env);
-    }
-
-    // --- IRS Public API Endpoints ---
-    if (url.pathname === "/api/irs/memos/db") {
-      try {
-        const rows = await env.DB.prepare("SELECT * FROM irs_memos WHERE status = 'active' ORDER BY published_at DESC LIMIT 20").all();
-        const memos = rows.results.map(memo => ({
+      const memos = rows.results.map((memo: any) => ({ ...memo, tags: memo.tags_json ? JSON.parse(memo.tags_json) : [] }));
           ...memo,
           tags: memo.tags_json ? JSON.parse(memo.tags_json) : []
         }));
