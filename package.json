@@ -9,6 +9,15 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20240129.0",
-    "wrangler": "^3.28.0"
+    "@types/node": "^25.0.10",
+    "wrangler": "^4.60.0"
+  },
+  "dependencies": {
+    "@tsndr/cloudflare-worker-jwt": "^3.2.1",
+    "@types/uuid": "^10.0.0",
+    "bcryptjs": "^3.0.3",
+    "hono": "^4.11.7",
+    "otpauth": "^9.4.1",
+    "uuid": "^13.0.0"
   }
 }
