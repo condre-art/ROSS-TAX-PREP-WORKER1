@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ROSS Tax Prep Platform Status</title>
+  <link rel="stylesheet" href="/styles.css">
+  <style>
+    body { background: #0a1a2f; color: #fff; font-family: 'Georgia', serif; margin: 0; }
+    .container { max-width: 700px; margin: 40px auto; background: #162447; border-radius: 16px; box-shadow: 0 4px 24px #0008; padding: 32px; }
+    h1 { color: #ffd700; font-size: 2.5em; margin-bottom: 0.2em; }
+    .brand { font-size: 1.2em; color: #fff; letter-spacing: 2px; margin-bottom: 1em; }
+    .status { font-size: 1.5em; margin: 1em 0; }
+    .ok { color: #00ff99; }
+    .degraded { color: #ffd700; }
+    .down { color: #ff4d4d; }
+    .incident { background: #ff4d4d22; border-left: 6px solid #ff4d4d; padding: 1em; margin: 1em 0; border-radius: 8px; }
+    .footer { margin-top: 2em; font-size: 0.95em; color: #aaa; }
+    .irs-badge { float: right; width: 80px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <img src="/irs-badge.png" alt="IRS Authorized E-File Provider" class="irs-badge" />
+    <div class="brand">ROSS TAX PREP PLATFORM</div>
+    <h1>Status Dashboard</h1>
+    <div class="status ok">All systems operational</div>
+    <div class="incident" style="display:none;">
+      <strong>Incident:</strong> <span id="incident-desc">No active incidents.</span><br>
+      <span id="incident-time"></span>
+    </div>
+    <h2>Monitored Services</h2>
+    <ul>
+      <li>IRS E-File API: <span class="ok">Operational</span></li>
+      <li>Client Portal: <span class="ok">Operational</span></li>
+      <li>Admin Console: <span class="ok">Operational</span></li>
+      <li>Payment Processing: <span class="ok">Operational</span></li>
+      <li>Document E-Signature: <span class="ok">Operational</span></li>
+    </ul>
+    <div class="footer">
+      <strong>Incident Response:</strong> In the event of an outage or security incident, our team will update this page and notify all clients via email and SMS. For urgent support, contact <a href="mailto:support@rosstaxprep.com" style="color:#ffd700;">support@rosstaxprep.com</a>.<br>
+      <br>
+      &copy; 2026 ROSS Tax Prep. All rights reserved.
+    </div>
+  </div>
+</body>
+</html>
