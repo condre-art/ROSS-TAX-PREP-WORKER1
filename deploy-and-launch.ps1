@@ -721,8 +721,9 @@ Write-Host "   4. Begin phone outreach to top 20 clients"
 Write-Host "   5. Monitor daily metrics"
 Write-Host ""
 
-Write-Host "⏱️  Deployment Duration: $($ElapsedTime.TotalMinutes -as [int]) minutes" -ForegroundColor Gray
-Write-Host "📅 End Time: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -ForegroundColor Gray
-Write-Host "==========================================" -ForegroundColor Gray"
+$duration = [int]$ElapsedTime.TotalMinutes
+Write-Host "Deployment Duration: $duration minutes" -ForegroundColor Gray
+Write-Host "End Time: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -ForegroundColor Gray
+Write-Host "==========================================" -ForegroundColor Gray
 
 Pop-Location
