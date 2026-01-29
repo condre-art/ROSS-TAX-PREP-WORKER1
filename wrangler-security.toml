@@ -1,0 +1,63 @@
+# Cloudflare Security Configuration
+# Tax Prep Worker - Production Grade
+
+[env.production]
+
+# WAF Rules - OWASP Top 10 Protection
+[env.production.routes]
+route = "ross-tax-prep-worker1.condre.workers.dev/*"
+zone_name = "rosstaxprepandbookkeeping.com"
+
+# Rate Limiting Rules
+# Auth endpoints: 5 requests per 60 seconds
+# Intake forms: 10 requests per 5 minutes
+
+[[env.production.limits]]
+rule = "login_auth"
+paths = ["/api/auth/login", "/api/auth/mfa/*"]
+requests = 5
+period = 60
+
+[[env.production.limits]]
+rule = "intake_form"
+paths = ["/api/crm/intakes"]
+requests = 10
+period = 300
+
+# Enforce HTTPS + HSTS
+[env.production.security]
+https_only = true
+hsts_max_age = 31536000
+hsts_include_subdomains = true
+hsts_preload = true
+
+# Turnstile Challenge
+[env.production.turnstile]
+enabled = true
+sitekey = "YOUR_CLOUDFLARE_TURNSTILE_SITEKEY"
+secret = "YOUR_CLOUDFLARE_TURNSTILE_SECRET"
+
+# Bot Protection
+[env.production.bot_protection]
+super_bot_fight_mode = true
+block_ai_crawlers = true
+challenge_on_suspicious = true
+
+# Content Security Policy
+[env.production.security_headers]
+csp = "default-src 'self'; script-src 'self' 'unsafe-inline' cdn.cloudflare.com; style-src 'self' 'unsafe-inline'; connect-src 'self' *.rosstaxprepandbookkeeping.com"
+x_content_type_options = "nosniff"
+x_frame_options = "DENY"
+x_xss_protection = "1; mode=block"
+
+# Geo-Blocking: Allow US traffic only (except for explicit allowlist)
+[env.production.geo_blocking]
+block_non_us = true
+allowlist = [
+  "CA",  # Canada - Clients/Partners
+  "MX"   # Mexico - Regional offices
+]
+
+# DDoS Protection
+[env.production.ddos]
+sensitivity_level = "high"
