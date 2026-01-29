@@ -41,14 +41,14 @@ paymentRouter.post('/intent', async (c) => {
     switch (provider) {
       case 'stripe':
         // Stripe integration
-        if (!c.env.STRIPE_SECRET_KEY) {
+        if (!(c.env as any).STRIPE_SECRET_KEY) {
           return c.json({ error: 'Stripe not configured' }, 500);
         }
 
         const stripeResponse = await fetch('https://api.stripe.com/v1/payment_intents', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${c.env.STRIPE_SECRET_KEY}`,
+            'Authorization': `Bearer ${(c.env as any).STRIPE_SECRET_KEY}`,
             'Content-Type': 'application/x-www-form-urlencoded',
           },
           body: new URLSearchParams({
@@ -64,7 +64,7 @@ paymentRouter.post('/intent', async (c) => {
         });
 
         if (!stripeResponse.ok) {
-          const error = await stripeResponse.json();
+          const error = await stripeResponse.json() as any;
           throw new Error(`Stripe error: ${error.error?.message || 'Unknown error'}`);
         }
 
@@ -72,7 +72,7 @@ paymentRouter.post('/intent', async (c) => {
         
         // Audit log
         const user = c.get('user') || { id: 0, email: customer_email, role: 'client' };
-        await auditPayment(c.env, paymentIntent.id, amount, user, 'initiated', c.req.raw);
+        await auditPayment((c.env as any), paymentIntent.id, amount, user, 'initiated', c.req.raw);
 
         return c.json({
           success: true,
@@ -83,14 +83,14 @@ paymentRouter.post('/intent', async (c) => {
 
       case 'square':
         // Square integration
-        if (!c.env.SQUARE_ACCESS_TOKEN || !c.env.SQUARE_LOCATION_ID) {
+        if (!(c.env as any).SQUARE_ACCESS_TOKEN || !(c.env as any).SQUARE_LOCATION_ID) {
           return c.json({ error: 'Square not configured' }, 500);
         }
 
         const squareResponse = await fetch('https://connect.squareup.com/v2/payments', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${c.env.SQUARE_ACCESS_TOKEN}`,
+            'Authorization': `Bearer ${(c.env as any).SQUARE_ACCESS_TOKEN}`,
             'Content-Type': 'application/json',
             'Square-Version': '2023-12-13'
           },
@@ -101,14 +101,14 @@ paymentRouter.post('/intent', async (c) => {
               currency
             },
             source_id: 'PLACEHOLDER_SOURCE', // Client provides source_id from Square.js
-            location_id: c.env.SQUARE_LOCATION_ID,
+            location_id: (c.env as any).SQUARE_LOCATION_ID,
             customer_email,
             note: description || 'Tax preparation service'
           })
         });
 
         if (!squareResponse.ok) {
-          const error = await squareResponse.json();
+          const error = await squareResponse.json() as any;
           throw new Error(`Square error: ${error.errors?.[0]?.detail || 'Unknown error'}`);
         }
 
@@ -154,18 +154,18 @@ paymentRouter.post('/verify', async (c) => {
 
     switch (provider) {
       case 'stripe':
-        if (!c.env.STRIPE_SECRET_KEY) {
+        if (!(c.env as any).STRIPE_SECRET_KEY) {
           return c.json({ error: 'Stripe not configured' }, 500);
         }
 
         const stripeResponse = await fetch(`https://api.stripe.com/v1/payment_intents/${transaction_id}`, {
           headers: {
-            'Authorization': `Bearer ${c.env.STRIPE_SECRET_KEY}`,
+            'Authorization': `Bearer ${(c.env as any).STRIPE_SECRET_KEY}`,
           }
         });
 
         if (!stripeResponse.ok) {
-          const error = await stripeResponse.json();
+          const error = await stripeResponse.json() as any;
           throw new Error(`Stripe error: ${error.error?.message || 'Unknown error'}`);
         }
 
@@ -174,7 +174,7 @@ paymentRouter.post('/verify', async (c) => {
         // Audit log
         const user = c.get('user') || { id: 0, email: 'unknown', role: 'system' };
         const status = paymentStatus.status === 'succeeded' ? 'completed' : 'failed';
-        await auditPayment(c.env, transaction_id, paymentStatus.amount / 100, user, status, c.req.raw);
+        await auditPayment((c.env as any), transaction_id, paymentStatus.amount / 100, user, status, c.req.raw);
 
         return c.json({
           success: true,
@@ -185,19 +185,19 @@ paymentRouter.post('/verify', async (c) => {
         });
 
       case 'square':
-        if (!c.env.SQUARE_ACCESS_TOKEN) {
+        if (!(c.env as any).SQUARE_ACCESS_TOKEN) {
           return c.json({ error: 'Square not configured' }, 500);
         }
 
         const squareResponse = await fetch(`https://connect.squareup.com/v2/payments/${transaction_id}`, {
           headers: {
-            'Authorization': `Bearer ${c.env.SQUARE_ACCESS_TOKEN}`,
+            'Authorization': `Bearer ${(c.env as any).SQUARE_ACCESS_TOKEN}`,
             'Square-Version': '2023-12-13'
           }
         });
 
         if (!squareResponse.ok) {
-          const error = await squareResponse.json();
+          const error = await squareResponse.json() as any;
           throw new Error(`Square error: ${error.errors?.[0]?.detail || 'Unknown error'}`);
         }
 

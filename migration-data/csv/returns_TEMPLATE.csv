@@ -1,0 +1,6 @@
+client_name,tax_year,return_type,status,date_filed
+John Doe,2024,1040,filed,2025-04-10
+John Doe,2023,1040,filed,2024-04-15
+Jane Smith,2024,1040,pending,2025-04-12
+Robert Johnson,2024,1120,filed,2025-03-15
+Robert Johnson,2023,1120,filed,2024-03-20

@@ -1,0 +1,35 @@
+# Dependencies
+node_modules
+.pnpm-debug.log*
+
+# Build output
+dist
+.output
+.vercel
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Vite
+.vite
+
+# TypeScript
+*.tsbuildinfo
+
+# IDE
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Wrangler
+.wrangler
+.dev.vars

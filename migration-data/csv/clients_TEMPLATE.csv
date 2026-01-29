@@ -1,0 +1,4 @@
+name,email,phone,ssn,address
+John Doe,john.doe@example.com,555-123-4567,XXX-XX-1234,"123 Main St, City, ST 12345"
+Jane Smith,jane.smith@example.com,555-987-6543,XXX-XX-5678,"456 Oak Ave, Town, ST 54321"
+Robert Johnson,robert.j@example.com,555-555-5555,XXX-XX-9012,"789 Elm Rd, Village, ST 67890"

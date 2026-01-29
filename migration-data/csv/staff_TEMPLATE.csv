@@ -1,0 +1,5 @@
+name,email,role
+Admin User,admin@rosstaxprep.com,admin
+Tax Preparer One,preparer1@rosstaxprep.com,staff
+Tax Preparer Two,preparer2@rosstaxprep.com,staff
+Receptionist,reception@rosstaxprep.com,staff

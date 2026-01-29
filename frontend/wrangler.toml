@@ -1,0 +1,30 @@
+name = "ross-tax-prep-frontend"
+compatibility_date = "2024-12-01"
+
+pages_build_output_dir = "./dist"
+
+# Note: Configure D1 and R2 bindings in Cloudflare Pages Dashboard after initial deployment
+# Then add binding IDs below:
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "ross-tax-prep-db"
+# database_id = "YOUR_D1_ID_HERE"
+
+# [[r2_buckets]]
+# binding = "DOCS"
+# bucket_name = "rtb-docs"
+# jurisdiction = "eu"
+
+# Custom domains (configure in Cloudflare dashboard after deployment)
+# routes = [
+#   { pattern = "www.rosstaxprep.com", custom_domain = true },
+#   { pattern = "rosstaxprep.com", custom_domain = true },
+#   { pattern = "intake.rosstaxprep.com", custom_domain = true },
+#   { pattern = "portal.rosstaxprep.com", custom_domain = true },
+# ]
+
+[env.production]
+name = "ross-tax-prep-frontend"
+
+[env.preview]
+name = "ross-tax-prep-frontend-preview"
