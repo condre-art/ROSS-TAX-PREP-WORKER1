@@ -1,4 +1,4 @@
-// --- All Imports at Top ---
+ // --- All Imports at Top ---
 import { healthRoute } from "./health";
 import { cors } from "./cors";
 import bcrypt from "bcryptjs";
@@ -9,21 +9,54 @@ import { ERO_EFIN_PROFILE, BANK_PRODUCT_PROVIDERS, SUPPORTED_PAYMENT_METHODS } f
 import { paymentRouter } from "./payment";
 import { transmitEFile, checkSubmissionStatus, processNewAcknowledgments, getEFileStatusInfo } from "./efile";
 import { fetchIrsSchema, fetchIrsMemos } from "./irs";
+import { handleCrmIntakes, handleCrmIntakeById, handleCrmIntakeCreate, handleCrmIntakeDelete } from "./routes/crm";
+import { handleListCertificates, handleIssueCertificate, handleGetCertificate, handleRevokeCertificate, handleDownloadCertificate, handleCertificateTypes } from "./routes/certificates";
+import { handleListTeam, handleGetTeamMember, handleListRegions } from "./routes/team";
+import { handleComplianceCheck, handleComplianceRequirements, handleIssueAllCertificates, handleComplianceReport } from "./routes/compliance";
+import { handleSocialPost, handleSocialFeed, handleSocialMetrics, handleSchedulePost, handleSocialMentions, handleSocialReply } from "./routes/socialMedia";
+import { handleGoogleReviews, handleGoogleReplyReview, handleGoogleStats } from "./routes/socialMedia";
 import {
   handleInstagramFeed,
   handleInstagramReviews,
   handleInstagramAnalytics,
   handleInstagramPost,
   handleInstagramDM
-} from "./src/instagram.js";
+  // @ts-expect-error - Legacy Instagram JS module without TypeScript definitions
+} from "./instagram.js";
 import { handleScheduledIRSSync, handleAuditLogProcessing } from "./utils";
 import { handleIrsCallback } from "./handlers/irs-callback";
 import { handlePaymentWebhook } from "./handlers/payment-webhook";
 import { handleCredentialUpload } from "./handlers/credential-upload";
 import { handleIrsRealtimeSchema, handleIrsRealtimeMemo, getIrsRealtimeStatus } from "./handlers/irs-realtime";
 
-// --- Global Variable ---
+// --- Global Configuration ---
 let seeded = false;
+
+export const SOCIAL_MEDIA_HANDLES = {
+  INSTAGRAM: "@rosstaxprepandbookkeepingllc",
+  X_TWITTER: "@rosstaxprep",
+  FACEBOOK: "Ross tax prep and bookkeeping inc.",
+  GOOGLE_BUSINESS: "Ross Tax Prep and Bookkeeping"
+};
+
+export const BUSINESS_INFO = {
+  legal_name: "Ross Tax Prep & Bookkeeping LLC",
+  business_name: "Ross Tax & Bookkeeping",
+  display_name: "Ross Tax Prep and Bookkeeping",
+  ein: "33-4891499",
+  category: "Tax Consultants",
+  address: "2509 Cody Poe Rd",
+  city: "Killeen",
+  state: "TX",
+  zip: "76549",
+  phone: "5124896749",
+  phone_formatted: "(512) 489-6749",
+  email: "info@rosstaxprepandbookkeeping.com",
+  website_url: "https://www.rosstaxprepandbookkeeping.com",
+  google_business_verified: true,
+  google_verification_date: "2026-01-28",
+  location_id: "ross-tax-killeen-tx"
+};
 
 // --- Type Interfaces ---
 interface AuthenticatedUser {
@@ -597,8 +630,8 @@ export default {
     // --- X (Twitter) API Integration Endpoints ---
     if (url.pathname === "/api/x/brand-monitoring") {
       return new Response(JSON.stringify({ mentions: [
-        "@RossTaxPrep mentioned in #TaxSeason2026",
-        "Great service from @RossTaxPrep!",
+        `${SOCIAL_MEDIA_HANDLES.X_TWITTER} mentioned in #TaxSeason2026`,
+        `Great service from ${SOCIAL_MEDIA_HANDLES.X_TWITTER}!`,
         "Ross Tax & Bookkeeping trending in local news."
       ] }), { headers: { "Content-Type": "application/json" } });
     }
@@ -611,9 +644,9 @@ export default {
     }
     if (url.pathname === "/api/x/customer-care") {
       return new Response(JSON.stringify({ cases: [
-        "@client123: Quick response from support!",
+        `@client123: Quick response from ${SOCIAL_MEDIA_HANDLES.X_TWITTER}!`,
         "Resolved: E-file submission issue.",
-        "@RossTaxPrep: Thank you for your feedback!"
+        `${SOCIAL_MEDIA_HANDLES.X_TWITTER}: Thank you for your feedback!`
       ] }), { headers: { "Content-Type": "application/json" } });
     }
     if (url.pathname === "/api/x/market-insights") {
@@ -858,7 +891,7 @@ export default {
       const clientId = url.pathname.split("/")[3];
       const sql = `SELECT m.* FROM irs_memos m JOIN irs_memo_links l ON m.id = l.memo_id WHERE l.client_id = ? ORDER BY m.published_at DESC`;
       const rows = await env.DB.prepare(sql).bind(clientId).all();
-      const memos = rows.results.map(memo => ({ ...memo, tags: memo.tags_json ? JSON.parse(memo.tags_json) : [] }));
+      const memos = rows.results.map((memo: any) => ({ ...memo, tags: memo.tags_json ? JSON.parse(memo.tags_json) : [] }));
       return new Response(JSON.stringify(memos), { headers: { "Content-Type": "application/json" } });
     }
     if (url.pathname.startsWith("/admin/returns/") && url.pathname.endsWith("/irs-memos") && req.method === "GET") {
@@ -866,6 +899,17 @@ export default {
       const sql = `SELECT m.* FROM irs_memos m JOIN irs_memo_links l ON m.id = l.memo_id WHERE l.return_id = ? ORDER BY m.published_at DESC`;
       const rows = await env.DB.prepare(sql).bind(returnId).all();
       const memos = rows.results.map((memo: any) => ({ ...memo, tags: memo.tags_json ? JSON.parse(memo.tags_json) : [] }));
+      return new Response(JSON.stringify(memos), { headers: { "Content-Type": "application/json" } });
+    }
+    if (url.pathname === "/admin/irs/schema" && req.method === "GET") {
+      return await listIrsSchemaFields(req, env);
+    }
+
+    // --- IRS Public API Endpoints ---
+    if (url.pathname === "/api/irs/memos/db") {
+      try {
+        const rows = await env.DB.prepare("SELECT * FROM irs_memos WHERE status = 'active' ORDER BY published_at DESC LIMIT 20").all();
+        const memos = rows.results.map((memo: any) => ({
           ...memo,
           tags: memo.tags_json ? JSON.parse(memo.tags_json) : []
         }));
@@ -980,6 +1024,110 @@ export default {
     }
     if (url.pathname === "/api/training/enroll" && req.method === "POST") {
       return await enrollTrainingCourse(req, env);
+    }
+
+    // --- CRM API Endpoints (Staff/Admin only, encrypted PII) ---
+    if (url.pathname === "/api/crm/intakes" && req.method === "GET") {
+      return cors(await handleCrmIntakes(req, env));
+    }
+    if (url.pathname === "/api/crm/intakes" && req.method === "POST") {
+      return cors(await handleCrmIntakeCreate(req, env));
+    }
+    if (url.pathname.startsWith("/api/crm/intakes/") && req.method === "GET") {
+      const id = url.pathname.split("/").pop()!;
+      return cors(await handleCrmIntakeById(req, env, id));
+    }
+    if (url.pathname.startsWith("/api/crm/intakes/") && req.method === "DELETE") {
+      const id = url.pathname.split("/").pop()!;
+      return cors(await handleCrmIntakeDelete(req, env, id));
+    }
+
+    // --- Certificates & Licenses API Endpoints (Admin only) ---
+    if (url.pathname === "/api/certificates/types" && req.method === "GET") {
+      return cors(await handleCertificateTypes(req, env));
+    }
+    if (url.pathname === "/api/certificates" && req.method === "GET") {
+      return cors(await handleListCertificates(req, env));
+    }
+    if (url.pathname === "/api/certificates/issue" && req.method === "POST") {
+      return cors(await handleIssueCertificate(req, env));
+    }
+    if (url.pathname.match(/^\/api\/certificates\/[^\/]+\/download$/) && req.method === "GET") {
+      const id = url.pathname.split("/")[3];
+      return cors(await handleDownloadCertificate(req, env, id));
+    }
+    if (url.pathname.match(/^\/api\/certificates\/[^\/]+\/revoke$/) && req.method === "POST") {
+      const id = url.pathname.split("/")[3];
+      return cors(await handleRevokeCertificate(req, env, id));
+    }
+    if (url.pathname.match(/^\/api\/certificates\/[^\/]+$/) && req.method === "GET") {
+      const id = url.pathname.split("/").pop()!;
+      return cors(await handleGetCertificate(req, env, id));
+    }
+
+    // --- Meet the Team API Endpoints ---
+    if (url.pathname === "/api/team" && req.method === "GET") {
+      return cors(await handleListTeam(req, env));
+    }
+    if (url.pathname === "/api/team/regions" && req.method === "GET") {
+      return cors(await handleListRegions(req, env));
+    }
+    if (url.pathname.match(/^\/api\/team\/[^\/]+$/) && req.method === "GET") {
+      const id = url.pathname.split("/").pop()!;
+      return cors(await handleGetTeamMember(req, env, id));
+    }
+
+    // --- Compliance API Endpoints ---
+    if (url.pathname === "/api/compliance/check" && req.method === "GET") {
+      return cors(await handleComplianceCheck(req, env));
+    }
+    if (url.pathname === "/api/compliance/requirements" && req.method === "GET") {
+      return cors(await handleComplianceRequirements(req, env));
+    }
+    if (url.pathname === "/api/compliance/issue-all" && req.method === "POST") {
+      return cors(await handleIssueAllCertificates(req, env));
+    }
+    if (url.pathname === "/api/compliance/report" && req.method === "GET") {
+      return cors(await handleComplianceReport(req, env));
+    }
+
+    // --- Social Media Integration Endpoints ---
+    if (url.pathname === "/api/social/post" && req.method === "POST") {
+      const user = await verifyAuth(req, env);
+      if (!user) return cors(unauthorized());
+      return cors(await handleSocialPost(req, env, user));
+    }
+    if (url.pathname === "/api/social/feed" && req.method === "GET") {
+      return cors(await handleSocialFeed(req, env));
+    }
+    if (url.pathname === "/api/social/metrics" && req.method === "GET") {
+      return cors(await handleSocialMetrics(req, env));
+    }
+    if (url.pathname === "/api/social/schedule" && req.method === "POST") {
+      const user = await verifyAuth(req, env);
+      if (!user) return cors(unauthorized());
+      return cors(await handleSchedulePost(req, env, user));
+    }
+    if (url.pathname === "/api/social/mentions" && req.method === "GET") {
+      return cors(await handleSocialMentions(req, env));
+    }
+    if (url.pathname === "/api/social/reply" && req.method === "POST") {
+      const user = await verifyAuth(req, env);
+      if (!user) return cors(unauthorized());
+      return cors(await handleSocialReply(req, env, user));
+    }
+
+    // --- Google Business Integration Endpoints ---
+    if (url.pathname === "/api/social/google/reviews" && req.method === "GET") {
+      return cors(await handleGoogleReviews(req, env));
+    }
+    if (url.pathname === "/api/social/google/reply" && req.method === "POST") {
+      const user = await verifyAuth(req, env);
+      if (!user) return cors(unauthorized());
+      return cors(await handleGoogleReplyReview(req, env, user));
+    }
+    if (url.pathname === "/api/social/google/stats" && req.method === "GET") {
+      return cors(await handleGoogleStats(req, env));
     }
 
     return new Response("Not Found", { status: 404 });

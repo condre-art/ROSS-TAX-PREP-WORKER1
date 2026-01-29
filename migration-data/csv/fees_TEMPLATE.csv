@@ -1,0 +1,6 @@
+client_name,service,amount,paid,date
+John Doe,Individual Tax Preparation,350.00,yes,2025-04-10
+John Doe,State Tax Return,75.00,yes,2025-04-10
+Jane Smith,Individual Tax Preparation,275.00,no,2025-04-12
+Robert Johnson,Business Tax Preparation,850.00,yes,2025-03-15
+Robert Johnson,Bookkeeping Services,200.00,yes,2025-03-15

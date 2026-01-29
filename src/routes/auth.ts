@@ -21,7 +21,7 @@ function generateTOTPSecret(): string {
 }
 
 // AES-GCM encryption utilities
-async function getKey(env) {
+async function getKey(env: any) {
   const keyData = new TextEncoder().encode(env.ENCRYPTION_KEY);
   return await crypto.subtle.importKey(
     "raw",
@@ -32,7 +32,7 @@ async function getKey(env) {
   );
 }
 
-async function encrypt(text, env) {
+async function encrypt(text: string, env: any) {
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const key = await getKey(env);
   const encoded = new TextEncoder().encode(text);
@@ -44,10 +44,10 @@ async function encrypt(text, env) {
   return btoa(String.fromCharCode(...iv) + String.fromCharCode(...new Uint8Array(ciphertext)));
 }
 
-async function decrypt(data, env) {
+async function decrypt(data: string, env: any) {
   const raw = atob(data);
-  const iv = new Uint8Array([...raw].slice(0, 12).map(c => c.charCodeAt(0)));
-  const ciphertext = new Uint8Array([...raw].slice(12).map(c => c.charCodeAt(0)));
+  const iv = new Uint8Array([...raw].slice(0, 12).map((c: string) => c.charCodeAt(0)));
+  const ciphertext = new Uint8Array([...raw].slice(12).map((c: string) => c.charCodeAt(0)));
   const key = await getKey(env);
   const decrypted = await crypto.subtle.decrypt(
     { name: "AES-GCM", iv },
@@ -58,7 +58,7 @@ async function decrypt(data, env) {
 }
 
 // Utility: get user by email (staff or client)
-async function getUserByEmail(env, email) {
+async function getUserByEmail(env: any, email: string) {
   let user = await env.DB.prepare("SELECT * FROM staff WHERE email = ?").bind(email).first();
   if (!user) user = await env.DB.prepare("SELECT * FROM clients WHERE email = ?").bind(email).first();
   return user;
@@ -69,7 +69,7 @@ export async function authRoute(req: Request, env: Env) {
   if (req.method !== "POST") {
     return new Response("Method Not Allowed", { status: 405 });
   }
-  const { email, password, mfa_code } = await req.json();
+  const { email, password, mfa_code } = await req.json() as { email: string; password: string; mfa_code?: string };
   const user = await getUserByEmail(env, email);
   if (!user) return new Response(JSON.stringify({ error: "Invalid credentials" }), { status: 401 });
   
@@ -89,17 +89,16 @@ export async function authRoute(req: Request, env: Env) {
       if (mfaSecret && !mfaSecret.startsWith("MFA")) {
         // If not encrypted, encrypt and update
         mfaSecret = await encrypt(mfaSecret, env);
-        await env.DB.prepare(`UPDATE ${user.role ? "staff" : "clients"} SET mfa_secret = ? WHERE id = ?`).bind(mfaSecret, user.id).run();
+        await (env as any).DB.prepare(`UPDATE ${user.role ? "staff" : "clients"} SET mfa_secret = ? WHERE id = ?`).bind(mfaSecret, user.id).run();
       }
       const decryptedSecret = await decrypt(mfaSecret, env);
       mfaValid = decryptedSecret && verifyTOTP(decryptedSecret, mfa_code);
     } else if (user.mfa_method === "email" || user.mfa_method === "sms") {
       // Check verification code from KV (stored temporarily)
-      const storedCode = await env.KV_NAMESPACE?.get(`mfa:${user.id}`);
+      const storedCode = await (env as any).KV_NAMESPACE?.get(`mfa:${user.id}`);
       mfaValid = storedCode && storedCode === mfa_code;
-      if (mfaValid && env.KV_NAMESPACE) {
-        // Delete used code
-        await env.KV_NAMESPACE.delete(`mfa:${user.id}`);
+      if (mfaValid && (env as any).KV_NAMESPACE) {
+        await (env as any).KV_NAMESPACE.delete(`mfa:${user.id}`);
       }
     }
     
@@ -107,12 +106,12 @@ export async function authRoute(req: Request, env: Env) {
     if (!mfaValid && user.mfa_backup_codes) {
       try {
         const backupCodes = JSON.parse(user.mfa_backup_codes);
-        const codeIndex = backupCodes.findIndex(code => code === mfa_code);
+        const codeIndex = backupCodes.findIndex((code: string) => code === mfa_code);
         if (codeIndex !== -1) {
           mfaValid = true;
           // Remove used backup code
           backupCodes.splice(codeIndex, 1);
-          await env.DB.prepare(`UPDATE ${user.role ? "staff" : "clients"} SET mfa_backup_codes = ? WHERE id = ?`)
+          await (env as any).DB.prepare(`UPDATE ${user.role ? "staff" : "clients"} SET mfa_backup_codes = ? WHERE id = ?`)
             .bind(JSON.stringify(backupCodes), user.id).run();
         }
       } catch (e) {
@@ -134,7 +133,7 @@ export async function authRoute(req: Request, env: Env) {
       name: user.name,
       exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60) // 24 hours
     },
-    env.JWT_SECRET || "change-this-secret-in-production"
+    (env as any).JWT_SECRET || "change-this-secret-in-production"
   );
   
   // Success: return JWT token
@@ -147,24 +146,24 @@ export async function authRoute(req: Request, env: Env) {
 
 // POST /api/auth/mfa/setup (enroll TOTP)
 export async function mfaSetupRoute(req: Request, env: Env) {
-  const { email } = await req.json();
+  const { email } = await req.json() as { email: string };
   const user = await getUserByEmail(env, email);
   if (!user) return new Response(JSON.stringify({ error: "User not found" }), { status: 404 });
   const secret = generateTOTPSecret();
   const encryptedSecret = await encrypt(secret, env);
   // Save encrypted secret (do not enable yet)
-  await env.DB.prepare(`UPDATE ${user.role ? "staff" : "clients"} SET mfa_secret = ? WHERE id = ?`).bind(encryptedSecret, user.id).run();
+  await (env as any).DB.prepare(`UPDATE ${user.role ? "staff" : "clients"} SET mfa_secret = ? WHERE id = ?`).bind(encryptedSecret, user.id).run();
   // Return secret for QR code (not encrypted)
   return new Response(JSON.stringify({ secret }), { headers: { "Content-Type": "application/json" } });
 }
 
 // POST /api/auth/mfa/verify (verify TOTP and enable)
 export async function mfaVerifyRoute(req: Request, env: Env) {
-  const { email, code } = await req.json();
+  const { email, code } = await req.json() as { email: string; code: string };
   const user = await getUserByEmail(env, email);
   if (!user || !user.mfa_secret) return new Response(JSON.stringify({ error: "User not found or not enrolled" }), { status: 404 });
   const decryptedSecret = await decrypt(user.mfa_secret, env);
   if (!verifyTOTP(decryptedSecret, code)) return new Response(JSON.stringify({ error: "Invalid code" }), { status: 401 });
-  await env.DB.prepare(`UPDATE ${user.role ? "staff" : "clients"} SET mfa_enabled = 1 WHERE id = ?`).bind(user.id).run();
+  await (env as any).DB.prepare(`UPDATE ${user.role ? "staff" : "clients"} SET mfa_enabled = 1 WHERE id = ?`).bind(user.id).run();
   return new Response(JSON.stringify({ success: true }), { headers: { "Content-Type": "application/json" } });
 }

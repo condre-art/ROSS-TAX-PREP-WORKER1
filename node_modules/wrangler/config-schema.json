@@ -3097,6 +3097,11 @@
           "description": "Port for the local dev server's inspector to listen on",
           "default": 9229
         },
+        "inspector_ip": {
+          "type": "string",
+          "description": "IP address for the local dev server's inspector to listen on",
+          "default": "127.0.0.1"
+        },
         "local_protocol": {
           "type": "string",
           "enum": [
