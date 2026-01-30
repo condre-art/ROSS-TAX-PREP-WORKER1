@@ -36,6 +36,9 @@ function Header() {
           <NavLink to="/crm" className={({ isActive }) => isActive ? "navlink active" : "navlink"}>
             CRM
           </NavLink>
+          <NavLink to="/lms" className={({ isActive }) => isActive ? "navlink active" : "navlink"}>
+            LMS
+          </NavLink>
         </nav>
       </div>
     </header>
@@ -64,9 +67,19 @@ export default function App() {
           <Route path="/intake" element={<Intake />} />
           <Route path="/success" element={<Success />} />
           <Route path="/crm" element={<CRM />} />
+          <Route path="/lms" element={<LazyLms />} />
         </Routes>
       </main>
       <Footer />
     </BrowserRouter>
   );
+}
+
+function LazyLms() {
+  const [Comp, setComp] = React.useState(null);
+  React.useEffect(() => {
+    import("./pages/Lms").then(m => setComp(() => m.default));
+  }, []);
+  if (!Comp) return <div className="section"><div className="container">Loading LMS…</div></div>;
+  return <Comp />;
 }
