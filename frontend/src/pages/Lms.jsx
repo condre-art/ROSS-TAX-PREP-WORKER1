@@ -51,7 +51,9 @@ export default function Lms() {
               <div className="stat-label">In Progress</div>
             </div>
             <div className="card stat">
-              <div className="stat-value">{overview.satisfaction}★</div>
+              <div className="stat-value" aria-label={`${overview.satisfaction} out of 5 stars`}>
+                {overview.satisfaction}★
+              </div>
               <div className="stat-label">Satisfaction</div>
             </div>
           </div>
