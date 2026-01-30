@@ -728,7 +728,7 @@ input:focus, select:focus, textarea:focus {
 }
 .stat {
   text-align: center;
-  background: linear-gradient(135deg, #0a2540, #102a43);
+  background: linear-gradient(135deg, var(--navy), #102a43);
   color: #fff;
 }
 .stat-value {
@@ -758,7 +758,7 @@ input:focus, select:focus, textarea:focus {
   color: #6b7280;
 }
 .pill {
-  background: #0a2540;
+  background: var(--navy);
   color: #fff;
   padding: 6px 10px;
   border-radius: 999px;

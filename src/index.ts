@@ -1132,6 +1132,9 @@ export default {
 
     // --- LMS Extension ---
     if (url.pathname === "/api/lms/overview" && req.method === "GET") {
+      const user = await verifyAuth(req, env);
+      if (!user) return cors(unauthorized());
+      if (!["admin", "staff"].includes(user.role)) return cors(forbidden());
       const stats = {
         enrolled: Number(env.LMS_ENROLLED ?? 128),
         completed: Number(env.LMS_COMPLETED ?? 94),
@@ -1141,6 +1144,9 @@ export default {
       return cors(new Response(JSON.stringify(stats), { headers: { "Content-Type": "application/json" } }));
     }
     if (url.pathname === "/api/lms/modules" && req.method === "GET") {
+      const user = await verifyAuth(req, env);
+      if (!user) return cors(unauthorized());
+      if (!["admin", "staff"].includes(user.role)) return cors(forbidden());
       const modules = [
         { id: "onboarding", title: "Onboarding & Compliance", duration: "25m", status: "live" },
         { id: "efile", title: "E-File Workflow Mastery", duration: "35m", status: "live" },
@@ -1150,13 +1156,20 @@ export default {
       return cors(new Response(JSON.stringify(modules), { headers: { "Content-Type": "application/json" } }));
     }
     if (url.pathname === "/api/lms/progress" && req.method === "POST") {
+      const user = await verifyAuth(req, env);
+      if (!user) return cors(unauthorized());
+      if (!["admin", "staff"].includes(user.role)) return cors(forbidden());
       try {
         const body = await req.json() as Record<string, any>;
         const { moduleId, progress } = body;
-        if (!moduleId || progress === undefined) {
-          return cors(new Response(JSON.stringify({ error: "moduleId and progress required" }), { status: 400, headers: { "Content-Type": "application/json" } }));
+        const numericProgress = Number(progress);
+        if (!moduleId || Number.isNaN(numericProgress)) {
+          return cors(new Response(JSON.stringify({ error: "moduleId and numeric progress required" }), { status: 400, headers: { "Content-Type": "application/json" } }));
         }
-        return cors(new Response(JSON.stringify({ success: true, moduleId, progress: Number(progress) }), { headers: { "Content-Type": "application/json" } }));
+        if (numericProgress < 0 || numericProgress > 100) {
+          return cors(new Response(JSON.stringify({ error: "progress must be between 0 and 100" }), { status: 400, headers: { "Content-Type": "application/json" } }));
+        }
+        return cors(new Response(JSON.stringify({ success: true, moduleId, progress: numericProgress }), { headers: { "Content-Type": "application/json" } }));
       } catch {
         return cors(new Response(JSON.stringify({ error: "Invalid JSON" }), { status: 400, headers: { "Content-Type": "application/json" } }));
       }
