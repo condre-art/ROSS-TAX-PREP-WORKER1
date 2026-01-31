@@ -1,9 +1,25 @@
+
+
+
+
+import Table from "../components/Table";
+import Button from "../components/Button";
+import Alert from "../components/Alert";
+import CrmSidebar from "../components/CrmSidebar";
+import Spinner from "../components/Spinner";
 import { useEffect, useState } from "react";
+import CertificateBadge from "../components/CertificateBadge";
+import { generateSOPAuditChecklistPDF } from "../utils/generateSOPAuditChecklistPDF";
+import { downloadOnboardingZip } from "../utils/downloadOnboardingZip";
 
 export default function CRM() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
 
   async function load() {
     try {
@@ -41,66 +57,88 @@ export default function CRM() {
     });
   }
 
+  const columns = ["Name", "Email", "Service", "Status", "Docs", "Date"];
+  const filtered = rows.filter(r =>
+    r.full_name?.toLowerCase().includes(search.toLowerCase()) ||
+    r.email?.toLowerCase().includes(search.toLowerCase()) ||
+    r.service?.toLowerCase().includes(search.toLowerCase())
+  );
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const paged = filtered.slice((page - 1) * pageSize, page * pageSize);
+  const tableData = paged.map(r => ({
+    Name: r.full_name,
+    Email: r.email,
+    Service: r.service,
+    Status: (
+      <select
+        value={r.status || "New"}
+        onChange={e => updateStatus(r.id, e.target.value)}
+        style={{ borderRadius: 6, padding: 4 }}
+      >
+        <option>New</option>
+        <option>In Progress</option>
+        <option>Waiting on Client</option>
+        <option>Filed</option>
+        <option>Completed</option>
+      </select>
+    ),
+    Docs: (
+      <input
+        type="file"
+        onChange={e => uploadDoc(r.id, e.target.files[0])}
+        style={{ borderRadius: 6 }}
+      />
+    ),
+    Date: new Date(r.created_at).toLocaleDateString(),
+  }));
+
   return (
-    <section className="section">
-      <div className="container">
-        <div className="crm-head">
-          <h2>Client CRM</h2>
+    <section className="section" style={{ padding: 0 }}>
+      <CertificateBadge />
+      <div style={{ display: "flex", minHeight: "80vh" }}>
+        <CrmSidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(c => !c)} />
+        <div className="container" style={{ flex: 1, padding: 32 }}>
 
-          <a className="btn btn-ghost" href="/api/crm/export.csv">
-            Export CSV
-          </a>
+          <div className="crm-head" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
+            <h2>Client CRM</h2>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <Button as="a" href="/api/crm/export.csv" variant="accent">Export CSV</Button>
+              <Button variant="accent" onClick={generateSOPAuditChecklistPDF}>
+                Download SOP & Audit Checklist (PDF)
+              </Button>
+              <Button variant="primary" onClick={downloadOnboardingZip}>
+                Download All Onboarding Docs (ZIP)
+              </Button>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, margin: '16px 0' }}>
+            <input
+              type="text"
+              placeholder="Search name, email, or service…"
+              value={search}
+              onChange={e => { setSearch(e.target.value); setPage(1); }}
+              style={{ padding: 8, borderRadius: 6, border: '1px solid #ccc', minWidth: 220 }}
+            />
+            <span style={{ color: '#888', fontSize: 14 }}>
+              {filtered.length} result{filtered.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+
+          {loading && <div style={{ textAlign: 'center', margin: 32 }}><Spinner size={40} /></div>}
+          {error && <Alert type="error">{error}</Alert>}
+
+          {!loading && (
+            <div className="card" style={{ marginTop: 24 }}>
+              <Table columns={columns} data={tableData} />
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, marginTop: 16 }}>
+                <Button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} style={{ minWidth: 36 }}>&lt;</Button>
+                <span style={{ fontWeight: 500 }}>Page {page} of {totalPages}</span>
+                <Button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} style={{ minWidth: 36 }}>&gt;</Button>
+              </div>
+            </div>
+          )}
         </div>
-
-        {loading && <p>Loading…</p>}
-        {error && <p className="alert alert-error">{error}</p>}
-
-        {!loading && (
-          <table className="crm-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Service</th>
-                <th>Status</th>
-                <th>Docs</th>
-                <th>Date</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {rows.map(r => (
-                <tr key={r.id}>
-                  <td>{r.full_name}</td>
-                  <td>{r.email}</td>
-                  <td>{r.service}</td>
-
-                  <td>
-                    <select
-                      value={r.status || "New"}
-                      onChange={e => updateStatus(r.id, e.target.value)}
-                    >
-                      <option>New</option>
-                      <option>In Progress</option>
-                      <option>Waiting on Client</option>
-                      <option>Filed</option>
-                      <option>Completed</option>
-                    </select>
-                  </td>
-
-                  <td>
-                    <input
-                      type="file"
-                      onChange={e => uploadDoc(r.id, e.target.files[0])}
-                    />
-                  </td>
-
-                  <td>{new Date(r.created_at).toLocaleDateString()}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
       </div>
     </section>
   );

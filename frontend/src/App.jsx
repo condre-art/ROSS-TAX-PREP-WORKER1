@@ -1,50 +1,8 @@
-import React from "react";
-import { BrowserRouter, Routes, Route, NavLink } from "react-router-dom";
-import Home from "./pages/Home";
-import Services from "./pages/Services";
-import Intake from "./pages/Intake";
-import Success from "./pages/Success";
-import CRM from "./pages/CRM";
-import "./index.css";
 
-function Header() {
-  return (
-    <header className="topbar">
-      <div className="container topbar-inner">
-        <div className="brand">
-          <img 
-            className="brand-logo" 
-            src="/rtb-logo.png" 
-            alt="Ross Tax & Bookkeeping"
-            onError={(e) => e.currentTarget.style.display = 'none'}
-          />
-          <div className="brand-text">
-            <div className="brand-name">Ross Tax &amp; Bookkeeping</div>
-            <div className="brand-sub">Accurate. Compliant. Confident.</div>
-          </div>
-        </div>
-
-        <nav className="nav">
-          <NavLink to="/" end className={({ isActive }) => isActive ? "navlink active" : "navlink"}>
-            Home
-          </NavLink>
-          <NavLink to="/services" className={({ isActive }) => isActive ? "navlink active" : "navlink"}>
-            Services
-          </NavLink>
-          <NavLink to="/intake" className={({ isActive }) => isActive ? "navlink active" : "navlink"}>
-            Intake
-          </NavLink>
-          <NavLink to="/crm" className={({ isActive }) => isActive ? "navlink active" : "navlink"}>
-            CRM
-          </NavLink>
-          <NavLink to="/lms" className={({ isActive }) => isActive ? "navlink active" : "navlink"}>
-            LMS
-          </NavLink>
-        </nav>
-      </div>
-    </header>
-  );
-}
+import Navbar from "./components/Navbar";
+import React, { useEffect, useState } from "react";
+import FAQ from "./pages/FAQ";
+import EFileWizard from "./pages/EFileWizard";
 
 function Footer() {
   return (
@@ -58,9 +16,29 @@ function Footer() {
 }
 
 export default function App() {
+  const [darkMode, setDarkMode] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("darkMode") === "true";
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+    if (typeof window !== "undefined") {
+      localStorage.setItem("darkMode", darkMode);
+      window.darkMode = darkMode;
+      window.setDarkMode = setDarkMode;
+    }
+  }, [darkMode]);
+
   return (
     <BrowserRouter>
-      <Header />
+      <Navbar />
       <main>
         <Routes>
           <Route path="/" element={<Home />} />
@@ -69,6 +47,8 @@ export default function App() {
           <Route path="/success" element={<Success />} />
           <Route path="/crm" element={<CRM />} />
           <Route path="/lms" element={<LazyLms />} />
+          <Route path="/efile" element={<EFileWizard />} />
+          <Route path="/faq" element={<FAQ />} />
         </Routes>
       </main>
       <Footer />
