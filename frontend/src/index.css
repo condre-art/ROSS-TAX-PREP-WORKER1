@@ -718,3 +718,49 @@ input:focus, select:focus, textarea:focus {
   padding: 6px;
   border-radius: 8px;
 }
+
+/* LMS */
+.lms-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.stat {
+  text-align: center;
+  background: linear-gradient(135deg, var(--navy), #102a43);
+  color: #fff;
+}
+.stat-value {
+  font-size: 28px;
+  font-weight: 700;
+}
+.stat-label {
+  opacity: 0.8;
+}
+.module-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.module-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.module-title {
+  font-weight: 600;
+}
+.module-meta {
+  color: #6b7280;
+}
+.pill {
+  background: var(--navy);
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+}
