@@ -1,8 +1,8 @@
 import React, { useRef } from "react";
 
 const COLORS = {
-  primary: '#27AE60',
-  accent: '#2C3E50',
+  primary: 'linear-gradient(90deg, #002147 0%, #ffd700 100%)',
+  accent: 'linear-gradient(90deg, #ffd700 0%, #002147 100%)',
   disabled: '#B0B0B0',
 };
 
@@ -19,18 +19,21 @@ export default function Button({
   // Compose style for base, then add dynamic states via CSS-in-JS
   const baseStyle = {
     background: disabled ? COLORS.disabled : COLORS[variant] || COLORS.primary,
-    color: '#fff',
+    color: variant === 'accent' ? '#002147' : '#fff',
     border: 'none',
-    borderRadius: '6px',
-    padding: '10px 20px',
-    fontWeight: 'bold',
+    borderRadius: '12px',
+    padding: '12px 28px',
+    fontWeight: 900,
+    fontSize: 17,
+    letterSpacing: 0.5,
     cursor: disabled ? 'not-allowed' : 'pointer',
     opacity: disabled ? 0.6 : 1,
-    boxShadow: disabled ? 'none' : '0 2px 8px rgba(44,62,80,0.10)',
+    boxShadow: disabled ? 'none' : '0 4px 18px rgba(44,62,80,0.13)',
     textTransform: 'uppercase',
     outline: 'none',
     transition: 'background 0.18s, box-shadow 0.18s, transform 0.12s',
     position: 'relative',
+    borderBottom: '3px solid #ffd700',
     ...style,
   };
 
@@ -51,13 +54,15 @@ export default function Button({
   // Dynamic style for focus/hover/active
   const dynamicCSS = `
     .${uniqueClass}:not([aria-disabled="true"]):hover {
-      background: ${variant === 'accent' ? '#34495E' : '#219150'};
-      box-shadow: 0 4px 16px rgba(44,62,80,0.16);
-      transform: translateY(-1px) scale(1.03);
+      background: linear-gradient(90deg, #ffd700 0%, #002147 100%);
+      color: #002147;
+      box-shadow: 0 6px 24px rgba(202,162,74,0.18);
+      transform: translateY(-2px) scale(1.04);
     }
     .${uniqueClass}:not([aria-disabled="true"]):active {
-      background: ${variant === 'accent' ? '#22313A' : '#17643C'};
-      box-shadow: 0 2px 6px rgba(44,62,80,0.10);
+      background: linear-gradient(90deg, #002147 0%, #ffd700 100%);
+      color: #ffd700;
+      box-shadow: 0 2px 8px rgba(44,62,80,0.10);
       transform: scale(0.98);
     }
     .${uniqueClass}:focus-visible {
