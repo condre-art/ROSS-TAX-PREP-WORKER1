@@ -1,13 +1,17 @@
 
 
+
 import { Link } from "react-router-dom";
 import Button from "../components/Button";
 import CertificateBadge from "../components/CertificateBadge";
 import CalloutBox from "../components/CalloutBox";
+import SocialFeed from "../components/SocialFeed";
+import AppointmentScheduler from "../components/AppointmentScheduler";
 
-export default function Home() {
   return (
     <>
+      <SocialFeed />
+      <AppointmentScheduler />
       <CertificateBadge />
       <section className="hero">
         <div className="container hero-inner">

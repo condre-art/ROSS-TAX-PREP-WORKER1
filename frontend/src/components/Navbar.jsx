@@ -21,6 +21,8 @@ function Navbar() {
           <NavLink to="/intake" className={({ isActive }) => isActive ? "navlink active" : "navlink"} onClick={() => setOpen(false)}>Intake</NavLink>
           <NavLink to="/crm" className={({ isActive }) => isActive ? "navlink active" : "navlink"} onClick={() => setOpen(false)}>CRM</NavLink>
           <NavLink to="/lms" className={({ isActive }) => isActive ? "navlink active" : "navlink"} onClick={() => setOpen(false)}>LMS</NavLink>
+          <a href="https://sa.www4.irs.gov/irfof/lang/en/irfofgetstatus.jsp" className="navlink" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>Where's My Refund</a>
+          <a href="https://www.irs.gov/filing/wheres-my-amended-return" className="navlink" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>Where's My Amended Return</a>
         </nav>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           {/* Dark mode toggle button, props: darkMode, setDarkMode */}
