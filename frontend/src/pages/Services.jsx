@@ -4,7 +4,9 @@ import { Link } from "react-router-dom";
 import Button from "../components/Button";
 import Card from "../components/Card";
 
+
 import { generateServicesPricingPDF } from "../utils/generateServicesPricingPDF";
+import CertificateBadge from "../components/CertificateBadge";
 
   return (
     <>
@@ -12,79 +14,97 @@ import { generateServicesPricingPDF } from "../utils/generateServicesPricingPDF"
       <section className="section">
         <div className="container">
 
+
           <div className="section-head" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <h2>Tax Preparation & Business Services</h2>
-            <p className="section-sub">Transparent pricing. Professional execution. Compliance-first.</p>
+            <h2>2026 Tax Preparation, Business & Compliance Services</h2>
+            <p className="section-sub">Transparent, flat-fee pricing. IRS-authorized. All services include compliance review, e-file, and audit support.</p>
             <Button variant="accent" onClick={generateServicesPricingPDF} style={{ alignSelf: 'flex-start', marginTop: 8 }}>
-              Download Services & Pricing Guide (PDF)
+              Download 2026 Services & Pricing Guide (PDF)
             </Button>
           </div>
 
+
           <div className="grid" style={{ display: "flex", gap: 24, flexWrap: "wrap", justifyContent: "center" }}>
             <Card>
-              <h3>Individual & Basic Tax Filers</h3>
-              <div style={{ fontWeight: 700, color: "#C9A24D", fontSize: 18 }}>Starting at $1,399.99</div>
-              <p>Final pricing depends on total forms and services rendered.</p>
+              <h3>Individual Tax Preparation (1040)</h3>
+              <div style={{ fontWeight: 700, color: "#C9A24D", fontSize: 18 }}>Flat Fee: $1,499.99</div>
               <ul style={{ margin: '12px 0 0 18px', fontSize: 15 }}>
-                <li>Federal Individual Tax Return (Form 1040)</li>
-                <li>State return (if applicable)</li>
-                <li>W-2 income reporting</li>
-                <li>Applicable credits and adjustments</li>
-                <li>IRS-compliant electronic filing</li>
-                <li>Required due diligence review</li>
+                <li>Federal 1040 & 1 state return</li>
+                <li>W-2, 1099, Social Security, retirement, and basic credits</li>
+                <li>Due diligence, e-file, audit support</li>
+                <li>Includes compliance review and secure portal</li>
               </ul>
-              <div style={{ fontSize: 13, color: '#888', marginTop: 8 }}>Note: Pricing may increase based on additional schedules, dependents, prior-year issues, or compliance requirements.</div>
+              <div style={{ fontSize: 13, color: '#888', marginTop: 8 }}>Add $150 per extra state. Complexities (rental, K-1, crypto, etc.) may increase fee.</div>
             </Card>
             <Card>
-              <h3>Schedule C — Sole Proprietor / Single-Member LLC</h3>
-              <div style={{ fontWeight: 700, color: "#C9A24D", fontSize: 18 }}>Starting at $1,499.99</div>
-              <p>Pricing varies based on services rendered and forms used.</p>
+              <h3>Self-Employed / Schedule C</h3>
+              <div style={{ fontWeight: 700, color: "#C9A24D", fontSize: 18 }}>Flat Fee: $1,699.99</div>
               <ul style={{ margin: '12px 0 0 18px', fontSize: 15 }}>
-                <li>Individual tax return with Schedule C</li>
-                <li>Business income & expense analysis</li>
-                <li>Deduction review (ordinary & necessary)</li>
-                <li>Basic depreciation</li>
-                <li>One state return (if applicable)</li>
-                <li>IRS-compliant e-file</li>
+                <li>1040 with Schedule C (sole prop/LLC)</li>
+                <li>Business income/expense, home office, depreciation</li>
+                <li>1 state included, e-file, compliance review</li>
+                <li>Includes audit support and secure portal</li>
               </ul>
+              <div style={{ fontSize: 13, color: '#888', marginTop: 8 }}>Add $150 per extra state. Bookkeeping not included.</div>
             </Card>
             <Card>
-              <h3>Business Tax Preparation (LLC • S-Corp • C-Corp)</h3>
-              <div style={{ fontWeight: 700, color: "#C9A24D", fontSize: 18 }}>Starting at $1,999.99</div>
+              <h3>Business Tax Prep (S-Corp, C-Corp, Multi-Member LLC)</h3>
+              <div style={{ fontWeight: 700, color: "#C9A24D", fontSize: 18 }}>Flat Fee: $2,499.99</div>
               <ul style={{ margin: '12px 0 0 18px', fontSize: 15 }}>
-                <li>Federal business tax return</li>
-                <li>State business filings (if required)</li>
-                <li>Financial review & reconciliation</li>
-                <li>Officer/shareholder compensation review (S-Corp)</li>
-                <li>Compliance and accuracy checks</li>
-                <li>Secure electronic filing</li>
+                <li>1120, 1120S, 1065, or state equivalent</li>
+                <li>Financial review, officer/shareholder comp, K-1s</li>
+                <li>Includes compliance, e-file, audit support</li>
+                <li>Secure portal for uploads and signatures</li>
               </ul>
+              <div style={{ fontSize: 13, color: '#888', marginTop: 8 }}>Add $250 per extra state. Payroll, bookkeeping, and 1099s billed separately.</div>
             </Card>
             <Card>
-              <h3>Bookkeeping</h3>
+              <h3>Bookkeeping & Write-Up</h3>
+              <div style={{ fontWeight: 700, color: "#C9A24D", fontSize: 18 }}>From $299/mo</div>
               <ul style={{ margin: '12px 0 0 18px', fontSize: 15 }}>
                 <li>Monthly/quarterly bookkeeping</li>
-                <li>Financial statement preparation</li>
-                <li>Bank reconciliation</li>
-                <li>Expense categorization</li>
-                <li>Year-end tax readiness</li>
+                <li>Bank/credit card reconciliation</li>
+                <li>Financial statements, year-end close</li>
+                <li>QuickBooks/Xero setup & support</li>
               </ul>
+              <div style={{ fontSize: 13, color: '#888', marginTop: 8 }}>Includes up to 3 accounts. Additional accounts or catch-up billed separately.</div>
             </Card>
             <Card>
-              <h3>Payroll Services</h3>
+              <h3>Payroll & Contractor Payments</h3>
+              <div style={{ fontWeight: 700, color: "#C9A24D", fontSize: 18 }}>From $99/mo</div>
               <ul style={{ margin: '12px 0 0 18px', fontSize: 15 }}>
-                <li>Payroll processing & reporting</li>
-                <li>W-2, W-3, 1099 filings</li>
+                <li>Payroll processing, direct deposit, tax filings</li>
+                <li>W-2, W-3, 1099-NEC, 1096</li>
                 <li>Quarterly/annual payroll tax returns</li>
-                <li>Reasonable compensation analysis (S-Corp)</li>
+                <li>Reasonable comp analysis (S-Corp)</li>
               </ul>
+              <div style={{ fontSize: 13, color: '#888', marginTop: 8 }}>Includes up to 5 employees/contractors. Additional billed per person.</div>
             </Card>
             <Card>
               <h3>Notary Public (TX, LA, AR)</h3>
+              <div style={{ fontWeight: 700, color: "#C9A24D", fontSize: 18 }}>From $50</div>
               <ul style={{ margin: '12px 0 0 18px', fontSize: 15 }}>
-                <li>Certified notary services for Texas, Louisiana, Arkansas</li>
+                <li>Certified notary for Texas, Louisiana, Arkansas</li>
                 <li>Document witnessing & certification</li>
                 <li>Mobile notary available (by appointment)</li>
+              </ul>
+            </Card>
+            <Card>
+              <h3>IRS/State Notice Response & Audit Defense</h3>
+              <div style={{ fontWeight: 700, color: "#C9A24D", fontSize: 18 }}>From $399/case</div>
+              <ul style={{ margin: '12px 0 0 18px', fontSize: 15 }}>
+                <li>Respond to IRS/state letters, notices, and audits</li>
+                <li>Includes research, response drafting, and follow-up</li>
+                <li>Audit defense for returns we prepared</li>
+              </ul>
+            </Card>
+            <Card>
+              <h3>Business Formation & Compliance</h3>
+              <div style={{ fontWeight: 700, color: "#C9A24D", fontSize: 18 }}>From $499</div>
+              <ul style={{ margin: '12px 0 0 18px', fontSize: 15 }}>
+                <li>LLC, S-Corp, C-Corp, EIN, state registration</li>
+                <li>Operating agreements, compliance checklists</li>
+                <li>Registered agent (TX, LA, AR)</li>
               </ul>
             </Card>
           </div>
@@ -95,18 +115,17 @@ import { generateServicesPricingPDF } from "../utils/generateServicesPricingPDF"
             </Button>
           </div>
 
-          <div className="section" style={{ marginTop: 48 }}>
-            <h3>Important Service Policy</h3>
-            <p>All services rendered are <b>non-refundable</b>.<br />Once preparation, review, or filing services begin, fees cannot be refunded, as professional services cannot be reversed or recovered.</p>
-          </div>
 
-          <div className="section" style={{ marginTop: 32 }}>
-            <h3>Service Agreement / Engagement Letter</h3>
-            <p><b>Scope of Services</b><br />Ross Tax & Bookkeeping agrees to provide tax preparation, bookkeeping, payroll, and related compliance services based solely on information provided by the Client. Services are limited to preparation and filing assistance and do not include legal representation.</p>
-            <p><b>Fees & Payment</b><br />Fees begin at the published starting rates and may increase based on:<br />- Number and complexity of tax forms<br />- Additional schedules, states, or amendments<br />- IRS or state notices<br />- Prior-year or corrective work<br />Full payment is required prior to electronic filing unless otherwise agreed in writing.</p>
-            <p><b>No Refund Policy</b><br />Client acknowledges that all services rendered are non-refundable, as time, labor, expertise, and regulatory compliance obligations cannot be reversed once work has commenced.</p>
-            <p><b>Client Responsibility</b><br />Client is responsible for providing accurate, complete, and timely information. Ross Tax & Bookkeeping is not responsible for penalties or interest resulting from omitted or inaccurate client-provided data.</p>
-            <p><b>No Legal or CPA Services</b><br />Ross Tax & Bookkeeping is not a law firm or CPA firm and does not provide legal advice or legal representation.</p>
+          <div className="section" style={{ marginTop: 48 }}>
+            <h3>Important Service Policies & Disclosures</h3>
+            <ul style={{ fontSize: 15, marginLeft: 18 }}>
+              <li><b>All services are non-refundable.</b> Once work begins, fees cannot be refunded due to the nature of professional services and regulatory compliance.</li>
+              <li><b>Full payment required before e-file or delivery.</b> No returns are filed or released until payment is received in full.</li>
+              <li><b>Client responsibility:</b> You must provide accurate, complete, and timely information. We are not responsible for penalties or interest due to client omissions or errors.</li>
+              <li><b>We do not provide legal or CPA services.</b> Ross Tax & Bookkeeping is not a law firm or CPA firm and does not offer legal advice or representation.</li>
+              <li><b>Privacy & Security:</b> All data is encrypted in transit and at rest. We comply with IRS, SOC2, and state privacy requirements.</li>
+              <li><b>Audit support:</b> All returns include basic audit support for notices and correspondence related to our work.</li>
+            </ul>
           </div>
         </div>
       </section>
