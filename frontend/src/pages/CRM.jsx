@@ -12,7 +12,7 @@ import CertificateBadge from "../components/CertificateBadge";
 import { generateSOPAuditChecklistPDF } from "../utils/generateSOPAuditChecklistPDF";
 import { downloadOnboardingZip } from "../utils/downloadOnboardingZip";
 
-export default function CRM() {
+export default function ClientPortal() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -25,11 +25,11 @@ export default function CRM() {
     try {
       setLoading(true);
       const r = await fetch("/api/crm/intakes");
-      if (!r.ok) throw new Error("Failed to load CRM data");
+      if (!r.ok) throw new Error("Failed to load Client Portal data");
       const data = await r.json();
       setRows(data);
     } catch (e) {
-      setError(e.message || "Error loading CRM");
+      setError(e.message || "Error loading Client Portal");
     } finally {
       setLoading(false);
     }
@@ -100,7 +100,7 @@ export default function CRM() {
         <div className="container" style={{ flex: 1, padding: 32 }}>
 
           <div className="crm-head" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
-            <h2>Client CRM</h2>
+            <h2>Client Portal</h2>
             <div style={{ display: 'flex', gap: 12 }}>
               <Button as="a" href="/api/crm/export.csv" variant="accent">Export CSV</Button>
               <Button variant="accent" onClick={generateSOPAuditChecklistPDF}>
