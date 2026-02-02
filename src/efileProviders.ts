@@ -63,7 +63,7 @@ export interface BankProductProvider {
  * ERO only - NOT for custom software development
  */
 export const ROSS_TAX_PREP_PROFILE: EfinProfile = {
-  efin: "743586",
+  efin: "****86", // Redacted for public
   etin_prod: "98978",
   firm_name: "ROSS TAX PREP AND BOOKKEEPING LLC",
   owner_name: "Condre Ross",
@@ -83,7 +83,7 @@ export const ROSS_TAX_PREP_PROFILE: EfinProfile = {
  * This is the CORRECT profile for custom-built transmitter software
  */
 export const TAX_CONSULTANTS_PROFILE: EfinProfile = {
-  efin: "748335",
+  efin: "****35", // Redacted for public
   etin_prod: "95409",
   etin_test: "95410",
   firm_name: "254 - TAX CONSULTANTS",

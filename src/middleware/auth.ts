@@ -1,3 +1,122 @@
+/**
+ * Middleware to require manager role
+ */
+export async function requireManager(req: Request, env: any): Promise<AuthenticatedUser | Response> {
+  const user = await verifyJWT(req, env);
+  if (!user) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+  if (user.role !== "manager" && user.role !== "admin") {
+    return new Response(JSON.stringify({ error: "Forbidden - Manager access required" }), {
+      status: 403,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+  return user;
+}
+
+/**
+ * Middleware to require supervisor role
+ */
+export async function requireSupervisor(req: Request, env: any): Promise<AuthenticatedUser | Response> {
+  const user = await verifyJWT(req, env);
+  if (!user) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+  if (user.role !== "supervisor" && user.role !== "manager" && user.role !== "admin") {
+    return new Response(JSON.stringify({ error: "Forbidden - Supervisor access required" }), {
+      status: 403,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+  return user;
+}
+
+/**
+ * Middleware to require team lead role
+ */
+export async function requireLead(req: Request, env: any): Promise<AuthenticatedUser | Response> {
+  const user = await verifyJWT(req, env);
+  if (!user) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+  if (user.role !== "lead" && user.role !== "supervisor" && user.role !== "manager" && user.role !== "admin") {
+    return new Response(JSON.stringify({ error: "Forbidden - Team Lead access required" }), {
+      status: 403,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+  return user;
+}
+
+/**
+ * Middleware to require tax associate role
+ */
+export async function requireAssociate(req: Request, env: any): Promise<AuthenticatedUser | Response> {
+  const user = await verifyJWT(req, env);
+  if (!user) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+  if (user.role !== "associate" && user.role !== "lead" && user.role !== "supervisor" && user.role !== "manager" && user.role !== "admin") {
+    return new Response(JSON.stringify({ error: "Forbidden - Tax Associate access required" }), {
+      status: 403,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+  return user;
+}
+
+/**
+ * Middleware to require PTIN holder role
+ */
+export async function requirePTINHolder(req: Request, env: any): Promise<AuthenticatedUser | Response> {
+  const user = await verifyJWT(req, env);
+  if (!user) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+  if (user.role !== "ptin_holder" && user.role !== "associate" && user.role !== "lead" && user.role !== "supervisor" && user.role !== "manager" && user.role !== "admin") {
+    return new Response(JSON.stringify({ error: "Forbidden - PTIN Holder access required" }), {
+      status: 403,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+  return user;
+}
+
+/**
+ * Middleware to require ERO role
+ */
+export async function requireERO(req: Request, env: any): Promise<AuthenticatedUser | Response> {
+  const user = await verifyJWT(req, env);
+  if (!user) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+  if (user.role !== "ero" && user.role !== "admin") {
+    return new Response(JSON.stringify({ error: "Forbidden - ERO access required" }), {
+      status: 403,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+  return user;
+}
 import jwt from "@tsndr/cloudflare-worker-jwt";
 
 export interface AuthenticatedUser {

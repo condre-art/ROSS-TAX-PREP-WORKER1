@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS staff (
   name TEXT NOT NULL,
   email TEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
-  role TEXT NOT NULL CHECK(role IN ('admin', 'staff')),
+  role TEXT NOT NULL CHECK(role IN ('admin', 'manager', 'supervisor', 'lead', 'associate', 'ptin_holder', 'ero', 'staff')),
   mfa_enabled INTEGER DEFAULT 0,
   mfa_secret TEXT,
   mfa_method TEXT, -- 'totp', 'email', 'sms'

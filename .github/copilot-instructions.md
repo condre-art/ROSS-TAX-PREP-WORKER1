@@ -87,7 +87,7 @@ Tax preparation and CRM platform built on **Cloudflare Workers** with a separate
 ## Form Handling & Validation
 
 ### Client-Side Form Pattern (React)
-Forms in [frontend/src/pages/Intake.jsx](../../frontend/src/pages/Intake.jsx) follow this pattern:
+Forms in [../frontend/src/pages/Intake.jsx](../frontend/src/pages/Intake.jsx) follow this pattern:
 
 ```jsx
 const [form, setForm] = useState({ fullName: "", email: "", phone: "", service: "", notes: "" });
@@ -113,7 +113,7 @@ async function onSubmit(e) {
 - Navigate to `/success` on successful submission
 
 ### Server-Side Validation Utilities
-Use validators from [src/middleware/validation.ts](../../src/middleware/validation.ts):
+Use validators from [../src/middleware/validation.ts](../src/middleware/validation.ts):
 
 ```typescript
 import { isValidEmail, isValidPhone, isValidSSN, isStrongPassword, sanitizeString, validateRequiredFields } from "../middleware/validation";
@@ -163,7 +163,7 @@ const decrypted = {
 ```
 
 ### IRS Schema Validation
-Tax return XML validation uses [src/schemaValidator.ts](../../src/schemaValidator.ts):
+Tax return XML validation uses [../src/schemaValidator.ts](../src/schemaValidator.ts):
 
 ```typescript
 import { createSchemaValidator, ReturnType } from './schemaValidator';

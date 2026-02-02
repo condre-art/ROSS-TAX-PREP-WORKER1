@@ -1,4 +1,7 @@
- // --- All Imports at Top ---
+import consultRouter from "./routes/consult";
+import dizRouter from "./routes/diz";
+import eroRouter from "./routes/ero";
+// --- All Imports at Top ---
 import { healthRoute } from "./health";
 import { cors } from "./cors";
 import bcrypt from "bcryptjs";
@@ -10,6 +13,9 @@ import { paymentRouter } from "./payment";
 import { transmitEFile, checkSubmissionStatus, processNewAcknowledgments, getEFileStatusInfo } from "./efile";
 import { fetchIrsSchema, fetchIrsMemos } from "./irs";
 import { handleCrmIntakes, handleCrmIntakeById, handleCrmIntakeCreate, handleCrmIntakeDelete } from "./routes/crm";
+import lmsRouter from "./routes/lms";
+import portalRouter from "./routes/portal";
+import portalAuthRouter from "./routes/portalAuth";
 import { handleListCertificates, handleIssueCertificate, handleGetCertificate, handleRevokeCertificate, handleDownloadCertificate, handleCertificateTypes } from "./routes/certificates";
 import { handleListTeam, handleGetTeamMember, handleListRegions } from "./routes/team";
 import { handleComplianceCheck, handleComplianceRequirements, handleIssueAllCertificates, handleComplianceReport } from "./routes/compliance";
@@ -595,6 +601,69 @@ export default {
     }
     const url = new URL(req.url);
 
+    // --- Consultation Booking API Route (all /api/consult/* endpoints) ---
+    if (url.pathname.startsWith("/api/consult")) {
+      const reqPath = url.pathname.replace(/^\/api\/consult/, "");
+      const consultReq = new Request(reqPath || "/", req);
+      Object.defineProperty(consultReq, "params", { value: {} });
+      const resp = await consultRouter.handle(consultReq, env);
+      return cors(resp);
+    }
+
+    // --- DIZ Client Workflow API Route (all /api/diz/* endpoints) ---
+    if (url.pathname.startsWith("/api/diz")) {
+      const reqPath = url.pathname.replace(/^\/api\/diz/, "");
+      const dizReq = new Request(reqPath || "/", req);
+      Object.defineProperty(dizReq, "params", { value: {} });
+      const resp = await dizRouter.handle(dizReq, env);
+      return cors(resp);
+    }
+
+    // --- ERO Workflow API Route (all /api/ero/* endpoints) ---
+    if (url.pathname.startsWith("/api/ero")) {
+      const reqPath = url.pathname.replace(/^\/api\/ero/, "");
+      const eroReq = new Request(reqPath || "/", req);
+      Object.defineProperty(eroReq, "params", { value: {} });
+      const resp = await eroRouter.handle(eroReq, env);
+      return cors(resp);
+    }
+
+    // --- Client Portal Auth Route (all /api/portal/login) ---
+    if (url.pathname.startsWith("/api/portal/login")) {
+      const reqPath = url.pathname.replace(/^\/api\/portal/, "");
+      const portalAuthReq = new Request(reqPath || "/", req);
+      Object.defineProperty(portalAuthReq, "params", { value: {} });
+      const resp = await portalAuthRouter.handle(portalAuthReq, env);
+      return cors(resp);
+    }
+
+    // --- Consultation Booking API Route (all /api/consult/* endpoints) ---
+    if (url.pathname.startsWith("/api/consult")) {
+      const reqPath = url.pathname.replace(/^\/api\/consult/, "");
+      const consultReq = new Request(reqPath || "/", req);
+      Object.defineProperty(consultReq, "params", { value: {} });
+      const resp = await consultRouter.handle(consultReq, env);
+      return cors(resp);
+    }
+
+    // --- DIZ Client Workflow API Route (all /api/diz/* endpoints) ---
+    if (url.pathname.startsWith("/api/diz")) {
+      const reqPath = url.pathname.replace(/^\/api\/diz/, "");
+      const dizReq = new Request(reqPath || "/", req);
+      Object.defineProperty(dizReq, "params", { value: {} });
+      const resp = await dizRouter.handle(dizReq, env);
+      return cors(resp);
+    }
+
+    // --- ERO Workflow API Route (all /api/ero/* endpoints) ---
+    if (url.pathname.startsWith("/api/ero")) {
+      const reqPath = url.pathname.replace(/^\/api\/ero/, "");
+      const eroReq = new Request(reqPath || "/", req);
+      Object.defineProperty(eroReq, "params", { value: {} });
+      const resp = await eroRouter.handle(eroReq, env);
+      return cors(resp);
+    }
+
     // Scheduled event: weekly Instagram tip post
     if (ctx && ctx.event && ctx.event.type === "scheduled") {
       const tipImageUrl = env.WEEKLY_TIP_IMAGE_URL;
@@ -1130,49 +1199,33 @@ export default {
       return cors(await handleGoogleStats(req, env));
     }
 
-    // --- LMS Extension ---
-    if (url.pathname === "/api/lms/overview" && req.method === "GET") {
-      const user = await verifyAuth(req, env);
-      if (!user) return cors(unauthorized());
-      if (!["admin", "staff"].includes(user.role)) return cors(forbidden());
-      const stats = {
-        enrolled: Number(env.LMS_ENROLLED ?? 128),
-        completed: Number(env.LMS_COMPLETED ?? 94),
-        in_progress: Number(env.LMS_INPROGRESS ?? 22),
-        satisfaction: Number(env.LMS_SATISFACTION ?? 4.8)
-      };
-      return cors(new Response(JSON.stringify(stats), { headers: { "Content-Type": "application/json" } }));
+
+
+    // --- Client Portal API Route (all /api/portal/* endpoints) ---
+    if (url.pathname.startsWith("/api/portal")) {
+      const reqPath = url.pathname.replace(/^\/api\/portal/, "");
+      const portalReq = new Request(reqPath || "/", req);
+      Object.defineProperty(portalReq, "params", { value: {} });
+      const resp = await portalRouter.handle(portalReq, env);
+      return cors(resp);
     }
-    if (url.pathname === "/api/lms/modules" && req.method === "GET") {
-      const user = await verifyAuth(req, env);
-      if (!user) return cors(unauthorized());
-      if (!["admin", "staff"].includes(user.role)) return cors(forbidden());
-      const modules = [
-        { id: "onboarding", title: "Onboarding & Compliance", duration: "25m", status: "live" },
-        { id: "efile", title: "E-File Workflow Mastery", duration: "35m", status: "live" },
-        { id: "security", title: "Data Protection & MFA", duration: "18m", status: "live" },
-        { id: "support", title: "Client Support Playbooks", duration: "22m", status: "live" }
-      ];
-      return cors(new Response(JSON.stringify(modules), { headers: { "Content-Type": "application/json" } }));
+
+    // --- LMS API Route (all /api/lms/* endpoints) ---
+    if (url.pathname.startsWith("/api/lms")) {
+      // itty-router expects the path only (no query)
+      const reqPath = url.pathname.replace(/^\/api\/lms/, "");
+      // Patch req.url for itty-router
+      const lmsReq = new Request(reqPath || "/", req);
+      // Attach params for itty-router
+      Object.defineProperty(lmsReq, "params", { value: {} });
+      // Route
+      const resp = await lmsRouter.handle(lmsReq, env);
+      return cors(resp);
     }
-    if (url.pathname === "/api/lms/progress" && req.method === "POST") {
-      const user = await verifyAuth(req, env);
-      if (!user) return cors(unauthorized());
-      if (!["admin", "staff"].includes(user.role)) return cors(forbidden());
-      try {
-        const body = await req.json() as Record<string, any>;
-        const { moduleId, progress } = body;
-        const numericProgress = Number(progress);
-        if (!moduleId || Number.isNaN(numericProgress)) {
-          return cors(new Response(JSON.stringify({ error: "moduleId and numeric progress required" }), { status: 400, headers: { "Content-Type": "application/json" } }));
-        }
-        if (numericProgress < 0 || numericProgress > 100) {
-          return cors(new Response(JSON.stringify({ error: "progress must be between 0 and 100" }), { status: 400, headers: { "Content-Type": "application/json" } }));
-        }
-        return cors(new Response(JSON.stringify({ success: true, moduleId, progress: numericProgress }), { headers: { "Content-Type": "application/json" } }));
-      } catch {
-        return cors(new Response(JSON.stringify({ error: "Invalid JSON" }), { status: 400, headers: { "Content-Type": "application/json" } }));
-      }
+
+    // LMS Payment Gateway
+    if (url.pathname === "/api/lms/payment" && request.method === "POST") {
+      return await lmsPaymentRouter.handle(request, event.target.env);
     }
 
     return new Response("Not Found", { status: 404 });

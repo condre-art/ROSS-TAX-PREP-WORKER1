@@ -53,34 +53,49 @@ lmsRouter.get('/courses/:id', (req, env) => {
 
 // POST /api/lms/courses
 lmsRouter.post('/courses', async (req, env) => {
-  const body = await req.json();
-  const { valid, errors } = validateRequiredFields(body, ['title']);
-  if (!valid) return new Response(JSON.stringify({ error: errors }), { status: 400 });
-  const id = 'c' + (courses.length + 1);
-  const course = { id, title: body.title, modules: [] };
-  courses.push(course);
-  await logAudit(env, { action: 'lms_course_create', entity: 'courses', entity_id: id });
-  return new Response(JSON.stringify(course), { headers: { 'Content-Type': 'application/json' } });
+  try {
+    const body = await req.json();
+    const { valid, errors } = validateRequiredFields(body, ['title']);
+    if (!valid) return new Response(JSON.stringify({ error: errors }), { status: 400 });
+    const id = 'c' + (courses.length + 1);
+    const course = { id, title: body.title, modules: [] };
+    courses.push(course);
+    await logAudit(env, { action: 'lms_course_create', entity: 'courses', entity_id: id });
+    return new Response(JSON.stringify(course), { headers: { 'Content-Type': 'application/json' } });
+  } catch (error) {
+    console.error('LMS create course error:', error);
+    return new Response(JSON.stringify({ error: 'Failed to create course' }), { status: 500 });
+  }
 });
 
 // PUT /api/lms/courses/:id
 lmsRouter.put('/courses/:id', async (req, env) => {
-  const body = await req.json();
-  const course = courses.find(c => c.id === req.params.id);
-  if (!course) return new Response('Not found', { status: 404 });
-  course.title = body.title || course.title;
-  course.modules = body.modules || course.modules;
-  await logAudit(env, { action: 'lms_course_update', entity: 'courses', entity_id: course.id });
-  return new Response(JSON.stringify(course), { headers: { 'Content-Type': 'application/json' } });
+  try {
+    const body = await req.json();
+    const course = courses.find(c => c.id === req.params.id);
+    if (!course) return new Response(JSON.stringify({ error: 'Not found' }), { status: 404 });
+    course.title = body.title || course.title;
+    course.modules = body.modules || course.modules;
+    await logAudit(env, { action: 'lms_course_update', entity: 'courses', entity_id: course.id });
+    return new Response(JSON.stringify(course), { headers: { 'Content-Type': 'application/json' } });
+  } catch (error) {
+    console.error('LMS update course error:', error);
+    return new Response(JSON.stringify({ error: 'Failed to update course' }), { status: 500 });
+  }
 });
 
 // DELETE /api/lms/courses/:id
 lmsRouter.delete('/courses/:id', async (req, env) => {
-  const idx = courses.findIndex(c => c.id === req.params.id);
-  if (idx === -1) return new Response('Not found', { status: 404 });
-  const [removed] = courses.splice(idx, 1);
-  await logAudit(env, { action: 'lms_course_delete', entity: 'courses', entity_id: removed.id });
-  return new Response(JSON.stringify({ success: true }));
+  try {
+    const idx = courses.findIndex(c => c.id === req.params.id);
+    if (idx === -1) return new Response(JSON.stringify({ error: 'Not found' }), { status: 404 });
+    const [removed] = courses.splice(idx, 1);
+    await logAudit(env, { action: 'lms_course_delete', entity: 'courses', entity_id: removed.id });
+    return new Response(JSON.stringify({ success: true }));
+  } catch (error) {
+    console.error('LMS delete course error:', error);
+    return new Response(JSON.stringify({ error: 'Failed to delete course' }), { status: 500 });
+  }
 });
 
 // GET /api/lms/students
@@ -97,46 +112,77 @@ lmsRouter.get('/students/:id', (req, env) => {
 
 // POST /api/lms/students
 lmsRouter.post('/students', async (req, env) => {
-  const body = await req.json();
-  const { valid, errors } = validateRequiredFields(body, ['name', 'email']);
-  if (!valid || !isValidEmail(body.email)) return new Response(JSON.stringify({ error: errors }), { status: 400 });
-  const id = 's' + (students.length + 1);
-  const student = { id, name: body.name, email: body.email, courses: [] };
-  students.push(student);
-  await logAudit(env, { action: 'lms_student_create', entity: 'students', entity_id: id });
-  return new Response(JSON.stringify(student), { headers: { 'Content-Type': 'application/json' } });
+  try {
+    const body = (await req.json()) as { name: string; email: string };
+    const { valid, errors } = validateRequiredFields(body, ['name', 'email']);
+    if (!valid || !isValidEmail(body.email)) return new Response(JSON.stringify({ error: errors }), { status: 400 });
+    const studentId = 's' + (students.length + 1);
+    const student = { id: studentId, name: body.name, email: body.email, courses: [] };
+    students.push(student);
+    await logAudit(env, { action: 'lms_student_create', entity: 'students', entity_id: studentId });
+    return new Response(JSON.stringify(student), { headers: { 'Content-Type': 'application/json' } });
+  } catch (error) {
+    console.error('LMS create student error:', error);
+    return new Response(JSON.stringify({ error: 'Failed to create student' }), { status: 500 });
+  }
 });
 
 // PATCH /api/lms/students/:id
 lmsRouter.patch('/students/:id', async (req, env) => {
-  const body = await req.json();
-  const student = students.find(s => s.id === req.params.id);
-  if (!student) return new Response('Not found', { status: 404 });
-  student.name = body.name || student.name;
-  student.email = body.email || student.email;
-  student.courses = body.courses || student.courses;
-  await logAudit(env, { action: 'lms_student_update', entity: 'students', entity_id: student.id });
-  return new Response(JSON.stringify(student), { headers: { 'Content-Type': 'application/json' } });
+  try {
+    const body = (await req.json()) as { name?: string; email?: string; courses?: any[] };
+    const student = students.find(s => s.id === req.params.id);
+    if (!student) return new Response(JSON.stringify({ error: 'Not found' }), { status: 404 });
+    student.name = body.name || student.name;
+    student.email = body.email || student.email;
+    student.courses = body.courses || student.courses;
+    await logAudit(env, { action: 'lms_student_update', entity: 'students', entity_id: student.id });
+    return new Response(JSON.stringify(student), { headers: { 'Content-Type': 'application/json' } });
+  } catch (error) {
+    console.error('LMS update student error:', error);
+    return new Response(JSON.stringify({ error: 'Failed to update student' }), { status: 500 });
+  }
 });
 
 // DELETE /api/lms/students/:id
 lmsRouter.delete('/students/:id', async (req, env) => {
-  const idx = students.findIndex(s => s.id === req.params.id);
-  if (idx === -1) return new Response('Not found', { status: 404 });
-  const [removed] = students.splice(idx, 1);
-  await logAudit(env, { action: 'lms_student_delete', entity: 'students', entity_id: removed.id });
-  return new Response(JSON.stringify({ success: true }));
+  try {
+    const idx = students.findIndex(s => s.id === req.params.id);
+    if (idx === -1) return new Response(JSON.stringify({ error: 'Not found' }), { status: 404 });
+    const [removed] = students.splice(idx, 1);
+    await logAudit(env, { action: 'lms_student_delete', entity: 'students', entity_id: removed.id });
+    return new Response(JSON.stringify({ success: true }));
+  } catch (error) {
+    console.error('LMS delete student error:', error);
+    return new Response(JSON.stringify({ error: 'Failed to delete student' }), { status: 500 });
+  }
 });
 
 // POST /api/lms/enroll
 lmsRouter.post('/enroll', async (req, env) => {
-  const body = await req.json();
-  const { studentId, courseId } = body;
-  if (!studentId || !courseId) return new Response('Missing studentId or courseId', { status: 400 });
-  const id = 'e' + (enrollments.length + 1);
-  enrollments.push({ id, studentId, courseId, status: 'active' });
-  await logAudit(env, { action: 'lms_enroll', entity: 'enrollments', entity_id: id });
-  return new Response(JSON.stringify({ success: true, id }), { headers: { 'Content-Type': 'application/json' } });
+  try {
+    const body = (await req.json()) as { name?: string; email?: string; studentId?: string; courseId?: string };
+    // Support both student creation and enrollment
+    if (body.name && body.email) {
+      const { valid, errors } = validateRequiredFields(body, ['name', 'email']);
+      if (!valid || !isValidEmail(body.email)) return new Response(JSON.stringify({ error: errors }), { status: 400 });
+      const id = 's' + (students.length + 1);
+      const student = { id, name: body.name, email: body.email, courses: [] };
+      students.push(student);
+      await logAudit(env, { action: 'lms_student_create', entity: 'students', entity_id: id });
+      return new Response(JSON.stringify(student), { headers: { 'Content-Type': 'application/json' } });
+    }
+    if (body.studentId && body.courseId) {
+      const enrollmentId = 'e' + (enrollments.length + 1);
+      enrollments.push({ id: enrollmentId, studentId: body.studentId, courseId: body.courseId, status: 'active' });
+      await logAudit(env, { action: 'lms_enroll', entity: 'enrollments', entity_id: enrollmentId });
+      return new Response(JSON.stringify({ success: true, id: enrollmentId }), { headers: { 'Content-Type': 'application/json' } });
+    }
+    return new Response(JSON.stringify({ error: 'Missing required fields' }), { status: 400 });
+  } catch (error) {
+    console.error('LMS enroll error:', error);
+    return new Response(JSON.stringify({ error: 'Failed to enroll student' }), { status: 500 });
+  }
 });
 
 // GET /api/lms/enrollments
@@ -158,8 +204,8 @@ lmsRouter.get('/config', (req, env) => {
 });
 // PUT /api/lms/config (staff only)
 lmsRouter.put('/config', requireStaff, async (req, env) => {
-  const body = await req.json();
-  lmsConfig = { ...lmsConfig, ...body };
+  const body = (await req.json()) as Partial<typeof lmsConfig>;
+  lmsConfig = { ...lmsConfig, ...(typeof body === 'object' && body !== null ? body : {}) };
   await logAudit(env, { action: 'lms_config_update', entity: 'lms_config', entity_id: 'lms' });
   return new Response(JSON.stringify(lmsConfig), { headers: { 'Content-Type': 'application/json' } });
 });
