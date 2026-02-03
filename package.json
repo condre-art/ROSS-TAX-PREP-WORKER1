@@ -8,7 +8,7 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "build": "wrangler deploy --dry-run --outdir=dist",
-    "test": "vitest"
+    "test": "node node_modules/vitest/vitest.mjs"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20240129.0",
