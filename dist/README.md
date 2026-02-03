@@ -1,1 +1,1 @@
-This folder contains the built output assets for the worker "ross-tax-prep-worker1" generated at 2026-02-03T08:30:33.007Z.
+This folder contains the built output assets for the worker "frontend" generated at 2026-02-03T08:32:57.958Z.

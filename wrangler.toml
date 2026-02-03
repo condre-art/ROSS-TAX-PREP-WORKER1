@@ -22,5 +22,5 @@ X_API_KEY = "AAAAAAAAAAAAAAAAAAAAAG8I7QEAAAAAxLDUL92xFkSJFxm0QkuVV%2BsdyDE%3DyhK
 
 [[d1_databases]]
 binding = "DB"
-database_name = "ross_tax_db"
-database_id = "YOUR-ID-HERE"
+database_name = "ross_tax_prep_db"
+database_id = "1be0402b-4c51-4a06-a662-cec3514ce6cc"
