@@ -2,48 +2,36 @@ sanitizeString("<script>");           // XSS prevention
 
 # Ross Tax Prep & Bookkeeping — AI Coding Agent Instructions
 
-## Architecture Overview
+## Architecture (big picture)
+- **Backend**: Cloudflare Worker entrypoint is [src/index.ts](src/index.ts); it does manual path gating, `verifyAuth` role checks, and delegates to routers under [src/routes/](src/routes/) (itty-router/Hono). Responses are wrapped by `cors`.
+- **Frontend**: Cloudflare Pages app in [frontend/](frontend/) (React + Vite) with Pages Functions under [frontend/functions/api/](frontend/functions/api/).
+- **Database**: D1 schema in [schema.sql](schema.sql). PII is encrypted before storage via `encryptPII`/`decryptPII` in [src/utils/encryption.ts](src/utils/encryption.ts).
+- **E-file**: Orchestration in [src/efile.ts](src/efile.ts) with IRS MeF A2A client in [src/mef.ts](src/mef.ts) and business-rule validation in [src/schemaValidator.ts](src/schemaValidator.ts).
 
-- **Backend**: Cloudflare Worker (TypeScript, see [src/index.ts](../src/index.ts)), exposes 100+ REST endpoints for CRM, LMS, IRS e-file, and more. Route handlers live in [src/routes/](../src/routes/), with middleware in [src/middleware/](../src/middleware/).
-- **Frontend**: Cloudflare Pages (React + Vite, see `frontend/`), with API endpoints in `frontend/functions/api/`.
-- **Database**: D1 (see [schema.sql](../schema.sql)), all PII is encrypted before storage ([src/utils/encryption.ts](../src/utils/encryption.ts)).
-- **IRS e-file**: Orchestrated in [src/efile.ts](../src/efile.ts), with MeF A2A logic in [src/mef.ts](../src/mef.ts).
+## Project-specific conventions
+- **Sensitive actions**: Log via `logAudit` from [src/utils/audit.ts](src/utils/audit.ts); don’t bypass audit logging for PII or admin actions.
+- **Auth/roles**: Use `verifyAuth` and explicit role checks in [src/index.ts](src/index.ts) for protected routes; some feature routers live under [src/routes/](src/routes/).
+- **Frontend forms**: Use `useState` for state, `useMemo` for validation, and a `status` object for UX feedback (see frontend source under [frontend/src](frontend/src)).
+- **Scheduled jobs**: Worker `scheduled()` runs IRS sync + audit log processing (see [src/index.ts](src/index.ts)).
 
-## Key Conventions & Patterns
+## Key data flows
+- **Frontend → backend**: Pages Functions POST to worker endpoints (e.g., CRM intakes to `/api/crm/intakes` in [src/index.ts](src/index.ts)).
+- **E-file lifecycle**: Transmission → status polling → acknowledgments (see [src/efile.ts](src/efile.ts) and [src/mef.ts](src/mef.ts)).
 
-- **Form Handling**: React forms use `useState` for state, `useMemo` for validation, and a `status` object for UX feedback. See your project's frontend source for canonical examples.
-- **Validation**: Always validate required fields and sanitize user input using the appropriate validation logic in your route handlers or middleware.
-- **PII Encryption**: Encrypt all sensitive fields before DB insert, decrypt on read. Use `encryptPII`/`decryptPII` from [src/utils/encryption.ts](../src/utils/encryption.ts).
-- **Audit Logging**: All sensitive actions must call `logAudit` ([src/utils/audit.ts](../src/utils/audit.ts)).
-- **Authentication**: Use `requireAuth`, `requireStaff`, or `requireAdmin` middleware for protected endpoints (see authentication logic in [src/index.ts](../src/index.ts) or relevant route handlers).
-- **IRS XML Validation**: Use [src/schemaValidator.ts](../src/schemaValidator.ts) for business rule validation of tax return XML.
+## Developer workflows
+- **Worker dev**: `npm run dev` (wrangler local) in repo root.
+- **Worker deploy/build**: `npm run deploy` / `npm run build` (dry-run to dist).
+- **Frontend dev**: `cd frontend && npm run dev` (Vite).
+- **Frontend deploy**: `cd frontend && npm run deploy`.
+- **D1 local migration**: `npx wrangler d1 execute DB --file=schema.sql --local`.
+- **Tests**: `npm run test` (vitest).
 
-## API & Data Flows
+## Runtime bindings & config
+- **D1 + R2 bindings**: Worker expects `DB` (D1) and `DOCUMENTS_BUCKET` (R2); see [wrangler.toml](wrangler.toml).
+- **Frontend worker**: Pages config and cron trigger live in [frontend/wrangler.toml](frontend/wrangler.toml).
+- **Dev Container**: .devcontainer forwards 8787 (worker) and 5173 (Vite) among others in [.devcontainer/devcontainer.json](.devcontainer/devcontainer.json).
 
-- **API Endpoints**: See [src/routes/](../src/routes/) for backend. Major resource groups: CRM, LMS, team, social, certificates, IRS, e-file.
-- **Frontend → Backend**: Forms POST to `/api/crm/intakes` or similar, handled by Pages Functions, then backend for staff/PII workflows.
-- **E-file**: IRS e-file transmission is orchestrated in [src/efile.ts](../src/efile.ts), with schema validation logic in [src/schemaValidator.ts](../src/schemaValidator.ts).
-
-## Developer Workflows
-
-- **Backend**: `npm run dev` (local), `npm run deploy` (Cloudflare Worker)
-- **Frontend**: `cd frontend && npm run dev` (Vite), `npm run deploy` (Cloudflare Pages)
-- **DB Migrations**: `npx wrangler d1 execute DB --file=schema.sql --local`
-- **Testing**: Use your project's test scripts or refer to the README for current API smoke test instructions.
-
-## Integration & External Services
-
-- **MailChannels**: Used for intake notifications (see your project's frontend API functions for implementation details)
-- **IRS MeF**: All e-file logic and schema validation in [src/mef.ts](../src/mef.ts) and [src/schemaValidator.ts](../src/schemaValidator.ts)
-
-## Examples
-
-- **Form Validation**: See [src/schemaValidator.ts](../src/schemaValidator.ts) for backend validation examples.
-- **PII Encryption**: See [src/utils/encryption.ts](../src/utils/encryption.ts)
-- **Audit Logging**: See [src/utils/audit.ts](../src/utils/audit.ts)
-
-## Tips for AI Agents
-
-- Always use project-provided validation, encryption, and logging utilities—do not roll your own.
-- Reference the actual API endpoints and data flows in [src/routes/](../src/routes/) and `frontend/functions/api/`.
-- When in doubt, check for conventions in the referenced files above before introducing new patterns.
+## External integrations
+- **DocuSign**: Envelope create + webhook handling in [src/index.ts](src/index.ts) (requires DocuSign secrets).
+- **IRS MeF**: Uses MEF cert env vars and test-mode fallback; see [src/mef.ts](src/mef.ts).
+- **MailChannels**: Intake notifications wired in frontend Pages Functions.

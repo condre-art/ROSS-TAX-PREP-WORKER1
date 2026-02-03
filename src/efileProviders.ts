@@ -246,6 +246,106 @@ export function validateSoftwareDeveloperApproval(): { valid: boolean; message: 
 // BANK PRODUCT PROVIDERS
 // ============================================================================
 
+/**
+ * Santa Barbara TPG (Tax Products Group) - Bank Product Provider
+ * Refund Transfer (RT), Refund Advance Loan (RAL), and other tax-related financial products
+ */
+export const SANTA_BARBARA_TPG: BankProductProvider = {
+  id: "sbtpg",
+  name: "Santa Barbara Tax Products Group",
+  api_url: "https://api.sbtpg.com/v2",
+  supported_products: [
+    "RT",           // Refund Transfer
+    "ERC",          // Electronic Refund Check
+    "RAL",          // Refund Anticipation Loan
+    "EITC_Advance", // EITC Advance
+    "Direct_Deposit" // Direct deposit routing
+  ],
+  support_contact: "support@sbtpg.com",
+  api_version: "v2",
+  authentication: "API_KEY",
+  production_url: "https://api.sbtpg.com/v2",
+  sandbox_url: "https://sandbox.sbtpg.com/v2",
+  documentation: "https://docs.sbtpg.com/api"
+};
+
+export interface SBTPGProduct {
+  product_id: string;
+  product_name: string;
+  product_type: "RT" | "ERC" | "RAL" | "EITC_Advance" | "Direct_Deposit";
+  fee_schedule: {
+    base_fee: number;
+    percentage_fee?: number;
+    max_fee?: number;
+  };
+  requirements: {
+    min_refund_amount: number;
+    max_refund_amount?: number;
+    eitc_required?: boolean;
+    credit_check?: boolean;
+  };
+}
+
+export const SBTPG_PRODUCTS: SBTPGProduct[] = [
+  {
+    product_id: "RT-2025",
+    product_name: "Refund Transfer 2025",
+    product_type: "RT",
+    fee_schedule: {
+      base_fee: 39.95,
+      max_fee: 59.95
+    },
+    requirements: {
+      min_refund_amount: 300,
+      credit_check: false
+    }
+  },
+  {
+    product_id: "RAL-2025",
+    product_name: "Refund Anticipation Loan 2025",
+    product_type: "RAL",
+    fee_schedule: {
+      base_fee: 0,
+      percentage_fee: 10.5,
+      max_fee: 500
+    },
+    requirements: {
+      min_refund_amount: 500,
+      max_refund_amount: 6000,
+      credit_check: true
+    }
+  },
+  {
+    product_id: "EITC-ADV-2025",
+    product_name: "EITC Advance 2025",
+    product_type: "EITC_Advance",
+    fee_schedule: {
+      base_fee: 0,
+      percentage_fee: 5.0
+    },
+    requirements: {
+      min_refund_amount: 300,
+      max_refund_amount: 2000,
+      eitc_required: true,
+      credit_check: false
+    }
+  },
+  {
+    product_id: "DD-2025",
+    product_name: "Direct Deposit 2025",
+    product_type: "Direct_Deposit",
+    fee_schedule: {
+      base_fee: 0
+    },
+    requirements: {
+      min_refund_amount: 0,
+      credit_check: false
+    }
+  }
+];
+
+// ============================================================================
+
 export const BANK_PRODUCT_PROVIDERS: BankProductProvider[] = [
   {
     id: "sbtpg",

@@ -4,6 +4,8 @@ import eroRouter from "./routes/ero";
 import aiSupportRouter from "./routes/aiSupport";
 import workflowRouter from "./routes/workflows";
 import invoicingRouter from "./routes/invoicing";
+import bankProductsRouter from "./routes/bankProducts";
+import aiAssistantRouter from "./routes/aiAssistant";
 // --- All Imports at Top ---
 import { healthRoute } from "./health";
 import { cors } from "./cors";
@@ -728,6 +730,24 @@ export default {
       if (user.role !== 'admin' && user.role !== 'staff') return cors(forbidden());
       invoicingReq.user = user;
       const resp = await invoicingRouter.handle(invoicingReq, env);
+      return cors(resp);
+    }
+
+    // --- Bank Products API Route (all /api/bank-products/* endpoints) ---
+    if (url.pathname.startsWith("/api/bank-products")) {
+      const reqPath = url.pathname.replace(/^\/api/, "");
+      const bankReq = new Request(reqPath || "/", req);
+      Object.defineProperty(bankReq, "params", { value: {} });
+      const resp = await bankProductsRouter.handle(bankReq, env);
+      return cors(resp);
+    }
+
+    // --- AI Tax Assistant API Route (all /api/ai-assistant/* endpoints) ---
+    if (url.pathname.startsWith("/api/ai-assistant")) {
+      const reqPath = url.pathname.replace(/^\/api/, "");
+      const aiReq = new Request(reqPath || "/", req);
+      Object.defineProperty(aiReq, "params", { value: {} });
+      const resp = await aiAssistantRouter.handle(aiReq, env);
       return cors(resp);
     }
 

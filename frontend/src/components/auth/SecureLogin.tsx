@@ -12,7 +12,8 @@ import {
   EyeOff,
   RefreshCw
 } from 'lucide-react';
-import { encryptPII } from '../utils/encryption';
+// Encryption utilities available if needed
+// import { encryptPII } from '../utils/encryption';
 
 interface SecureLoginProps {
   onLoginSuccess: (user: any) => void;
