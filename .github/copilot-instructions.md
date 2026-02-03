@@ -33,7 +33,7 @@ sanitizeString("<script>");           // XSS prevention
 
 ## Integration & External Services
 
-- **MailChannels**: Used for intake notifications (see [frontend/functions/api/intake.ts](../frontend/functions/api/intake.ts))
+- **MailChannels**: Used for intake notifications (see your project's frontend API functions for implementation details)
 - **IRS MeF**: All e-file logic and schema validation in [src/mef.ts](../src/mef.ts) and [src/schemaValidator.ts](../src/schemaValidator.ts)
 
 ## Examples

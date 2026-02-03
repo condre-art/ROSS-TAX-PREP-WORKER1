@@ -24,3 +24,9 @@ X_API_KEY = "AAAAAAAAAAAAAAAAAAAAAG8I7QEAAAAAxLDUL92xFkSJFxm0QkuVV%2BsdyDE%3DyhK
 binding = "DB"
 database_name = "ross_tax_prep_db"
 database_id = "1be0402b-4c51-4a06-a662-cec3514ce6cc"
+
+# R2 Bucket for Document Storage
+[[r2_buckets]]
+binding = "DOCUMENTS_BUCKET"
+bucket_name = "ross-tax-documents"
+preview_bucket_name = "ross-tax-documents-preview"

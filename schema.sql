@@ -47,6 +47,33 @@ CREATE TABLE IF NOT EXISTS messages (
   FOREIGN KEY (client_id) REFERENCES clients(id)
 );
 
+-- INVOICES (Admin invoicing system)
+CREATE TABLE IF NOT EXISTS invoices (
+  id TEXT PRIMARY KEY,
+  admin_id INTEGER NOT NULL,
+  client_id INTEGER NOT NULL,
+  invoice_number TEXT UNIQUE NOT NULL,
+  issue_date TEXT NOT NULL,
+  due_date TEXT NOT NULL,
+  items_json TEXT NOT NULL, -- JSON array of {description, quantity, unit_price, line_total}
+  subtotal REAL NOT NULL,
+  tax_rate REAL DEFAULT 0,
+  tax_amount REAL DEFAULT 0,
+  total REAL NOT NULL,
+  notes TEXT,
+  status TEXT NOT NULL DEFAULT 'draft' CHECK(status IN ('draft', 'issued', 'sent', 'paid', 'overdue', 'cancelled')),
+  sent_at TEXT,
+  paid_at TEXT,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (admin_id) REFERENCES staff(id),
+  FOREIGN KEY (client_id) REFERENCES clients(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_invoices_client ON invoices(client_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_admin ON invoices(admin_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_status ON invoices(status);
+
 -- DOCUMENTS (R2 uploads)
 CREATE TABLE IF NOT EXISTS documents (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -221,6 +248,165 @@ CREATE TABLE IF NOT EXISTS efile_transmissions (
   FOREIGN KEY (client_id) REFERENCES clients(id),
   FOREIGN KEY (preparer_id) REFERENCES staff(id)
 );
+
+-- COMPREHENSIVE USER PROFILES (All roles with secure identity data)
+CREATE TABLE IF NOT EXISTS user_profiles (
+  id TEXT PRIMARY KEY,
+  user_id INTEGER NOT NULL,
+  user_type TEXT NOT NULL CHECK(user_type IN ('client', 'staff', 'admin', 'ero')),
+  
+  -- Encrypted Personal Identifiers
+  encrypted_ssn TEXT NOT NULL,
+  encrypted_dob TEXT NOT NULL,
+  encrypted_mothers_maiden_name TEXT NOT NULL,
+  occupation TEXT,
+  
+  -- Encrypted Address
+  encrypted_street_address TEXT NOT NULL,
+  encrypted_city TEXT NOT NULL,
+  encrypted_state TEXT NOT NULL,
+  encrypted_zip_code TEXT NOT NULL,
+  
+  -- Encrypted ID Verification
+  id_type TEXT NOT NULL CHECK(id_type IN ('drivers_license', 'state_id', 'passport')),
+  encrypted_id_state TEXT NOT NULL,
+  encrypted_id_number TEXT NOT NULL,
+  encrypted_id_issue_date TEXT NOT NULL,
+  encrypted_id_expiration_date TEXT NOT NULL,
+  
+  -- Filing Status (for clients)
+  filing_status TEXT CHECK(filing_status IN ('single', 'married_joint', 'married_separate', 'head_of_household', 'qualifying_widow')),
+  
+  -- Staff Info (for staff/ERO/admin)
+  staff_role TEXT,
+  ptin_number TEXT,
+  hire_date TEXT,
+  department TEXT,
+  
+  -- Verification Status
+  identity_verified INTEGER DEFAULT 0,
+  verification_method TEXT,
+  verified_at TEXT,
+  
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_profiles_user ON user_profiles(user_id, user_type);
+
+-- AI CHAT SYSTEM
+CREATE TABLE IF NOT EXISTS ai_chat_messages (
+  id TEXT PRIMARY KEY,
+  session_id TEXT NOT NULL,
+  role TEXT NOT NULL CHECK(role IN ('user', 'assistant', 'system')),
+  message TEXT NOT NULL,
+  intent TEXT,
+  confidence REAL,
+  metadata TEXT, -- JSON
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_ai_chat_session ON ai_chat_messages(session_id);
+
+CREATE TABLE IF NOT EXISTS ai_chat_analytics (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  session_id TEXT NOT NULL,
+  intent TEXT NOT NULL,
+  confidence REAL,
+  user_message_length INTEGER,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_ai_analytics_intent ON ai_chat_analytics(intent);
+CREATE INDEX IF NOT EXISTS idx_ai_analytics_date ON ai_chat_analytics(created_at);
+
+-- AI TRANSFER REQUESTS (AI → Live Agent)
+CREATE TABLE IF NOT EXISTS ai_transfer_requests (
+  id TEXT PRIMARY KEY,
+  session_id TEXT NOT NULL,
+  client_name TEXT NOT NULL,
+  client_email TEXT NOT NULL,
+  client_phone TEXT,
+  reason TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'accepted', 'completed', 'expired')),
+  assigned_ero_id INTEGER,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (assigned_ero_id) REFERENCES staff(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_ai_transfers_status ON ai_transfer_requests(status);
+
+-- ERO MESSAGING (Encrypted preparer-to-client and coworker communication)
+CREATE TABLE IF NOT EXISTS ero_messages (
+  id TEXT PRIMARY KEY,
+  conversation_id TEXT NOT NULL,
+  transfer_request_id TEXT,
+  sender_id INTEGER NOT NULL,
+  sender_type TEXT NOT NULL CHECK(sender_type IN ('client', 'staff', 'ero', 'admin')),
+  recipient_id INTEGER,
+  recipient_type TEXT CHECK(recipient_type IN ('client', 'staff', 'ero', 'admin')),
+  message TEXT NOT NULL,
+  encrypted INTEGER DEFAULT 0,
+  read_at TEXT,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (transfer_request_id) REFERENCES ai_transfer_requests(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_ero_messages_conversation ON ero_messages(conversation_id);
+CREATE INDEX IF NOT EXISTS idx_ero_messages_sender ON ero_messages(sender_id, sender_type);
+CREATE INDEX IF NOT EXISTS idx_ero_messages_recipient ON ero_messages(recipient_id, recipient_type);
+
+-- INTAKE FORMS (Routed to info@rosstaxandbookkeeping.com)
+CREATE TABLE IF NOT EXISTS intake_forms (
+  id TEXT PRIMARY KEY,
+  client_name TEXT NOT NULL,
+  client_email TEXT NOT NULL,
+  client_phone TEXT,
+  encrypted_data TEXT NOT NULL,
+  source TEXT DEFAULT 'web',
+  status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'reviewed', 'contacted', 'converted', 'closed')),
+  assigned_to INTEGER,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (assigned_to) REFERENCES staff(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_intake_status ON intake_forms(status);
+CREATE INDEX IF NOT EXISTS idx_intake_created ON intake_forms(created_at);
+
+-- ADMIN BROADCASTS
+CREATE TABLE IF NOT EXISTS admin_broadcasts (
+  id TEXT PRIMARY KEY,
+  subject TEXT NOT NULL,
+  message TEXT NOT NULL,
+  recipients TEXT NOT NULL, -- 'all', 'clients', 'staff'
+  sent_count INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+-- AUDIT LOG (Comprehensive)
+CREATE TABLE IF NOT EXISTS audit_log (
+  id TEXT PRIMARY KEY,
+  action TEXT NOT NULL,
+  entity TEXT NOT NULL,
+  entity_id TEXT,
+  user_id INTEGER,
+  user_role TEXT,
+  user_email TEXT,
+  details TEXT, -- JSON
+  ip_address TEXT,
+  user_agent TEXT,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_log(action);
+CREATE INDEX IF NOT EXISTS idx_audit_entity ON audit_log(entity, entity_id);
+CREATE INDEX IF NOT EXISTS idx_audit_user ON audit_log(user_id);
+CREATE INDEX IF NOT EXISTS idx_audit_date ON audit_log(created_at);
+
+-- RETURNS TABLE EXTENSION (Add assigned_ero_id)
+ALTER TABLE returns ADD COLUMN assigned_ero_id INTEGER REFERENCES staff(id);
 
 -- MeF Submissions Tracking
 CREATE TABLE IF NOT EXISTS mef_submissions (

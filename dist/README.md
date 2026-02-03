@@ -1,1 +1,1 @@
-This folder contains the built output assets for the worker "frontend" generated at 2026-02-03T08:32:57.958Z.
+This folder contains the built output assets for the worker "frontend" generated at 2026-02-03T10:16:16.021Z.

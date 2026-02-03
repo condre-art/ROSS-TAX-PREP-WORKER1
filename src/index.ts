@@ -1,6 +1,9 @@
 import consultRouter from "./routes/consult";
 import dizRouter from "./routes/diz";
 import eroRouter from "./routes/ero";
+import aiSupportRouter from "./routes/aiSupport";
+import workflowRouter from "./routes/workflows";
+import invoicingRouter from "./routes/invoicing";
 // --- All Imports at Top ---
 import { healthRoute } from "./health";
 import { cors } from "./cors";
@@ -62,6 +65,45 @@ export const BUSINESS_INFO = {
   google_business_verified: true,
   google_verification_date: "2026-01-28",
   location_id: "ross-tax-killeen-tx"
+};
+
+// --- Administrator Email Routes ---
+export const ADMIN_EMAIL_ROUTES = {
+  // Owner/CEO
+  condre: {
+    name: "Condre Ross",
+    email: "condre@rosstaxprepandbookkeeping.com",
+    role: "owner_ceo",
+    departments: ["executive", "compliance", "strategy"]
+  },
+  // General Admin
+  admin: {
+    name: "Administrator",
+    email: "admin@rosstaxprepandbookkeeping.com",
+    role: "admin",
+    departments: ["administration", "operations"]
+  },
+  // Client Support & 1040-X (Extensions)
+  support: {
+    name: "Support Team",
+    email: "info@rosstaxprepandbookkeeping.com",
+    role: "support",
+    departments: ["client_services", "1040x_support", "tax_amendments"]
+  },
+  // ERO Employees & Help Desk
+  hr: {
+    name: "HR & Help Desk",
+    email: "hr@rosstaxprepandbookkeeping.com",
+    role: "hr_helpdesk",
+    departments: ["human_resources", "ero_support", "employee_assistance"]
+  },
+  // Reviews & Concerns
+  experience: {
+    name: "Experience Team",
+    email: "experience@rosstaxprepandbookkeeping.com",
+    role: "experience",
+    departments: ["customer_feedback", "quality_assurance", "compliance_reviews"]
+  }
 };
 
 // --- Type Interfaces ---
@@ -131,10 +173,22 @@ async function seedAdminIfNone(env: any) {
     }
     if (row.count === 0) {
       const password_hash = await bcrypt.hash("Admin123!", 10);
-      await env.DB.prepare(
-        "INSERT INTO staff (name, email, password_hash, role) VALUES (?, ?, ?, 'admin')"
-      ).bind("Administrator", "admin@rosstaxprepandbookkeeping.com", password_hash).run();
-      console.log("Admin user seeded.");
+      
+      // Seed all admin staff accounts from ADMIN_EMAIL_ROUTES
+      const adminAccounts = [
+        { name: "Condre Ross", email: "condre@rosstaxprepandbookkeeping.com", role: "admin" },
+        { name: "Administrator", email: "admin@rosstaxprepandbookkeeping.com", role: "admin" },
+        { name: "Support Team", email: "info@rosstaxprepandbookkeeping.com", role: "staff" },
+        { name: "HR & Help Desk", email: "hr@rosstaxprepandbookkeeping.com", role: "staff" },
+        { name: "Experience Team", email: "experience@rosstaxprepandbookkeeping.com", role: "staff" }
+      ];
+      
+      for (const account of adminAccounts) {
+        await env.DB.prepare(
+          "INSERT INTO staff (name, email, password_hash, role) VALUES (?, ?, ?, ?)"
+        ).bind(account.name, account.email, password_hash, account.role).run();
+      }
+      console.log(`✅ Admin staff seeded: ${adminAccounts.length} accounts created`);
     }
   } catch (e) {
     console.log("seedAdminIfNone error:", e);
@@ -661,6 +715,19 @@ export default {
       const eroReq = new Request(reqPath || "/", req);
       Object.defineProperty(eroReq, "params", { value: {} });
       const resp = await eroRouter.handle(eroReq, env);
+      return cors(resp);
+    }
+
+    // --- Invoicing API Route (all /api/admin/invoices/* endpoints) ---
+    if (url.pathname.startsWith("/api/admin/invoices")) {
+      const reqPath = url.pathname.replace(/^\/api\/admin/, "");
+      const invoicingReq = new Request(reqPath || "/", req);
+      Object.defineProperty(invoicingReq, "params", { value: {} });
+      const user = await verifyAuth(req, env);
+      if (!user) return cors(unauthorized());
+      if (user.role !== 'admin' && user.role !== 'staff') return cors(forbidden());
+      invoicingReq.user = user;
+      const resp = await invoicingRouter.handle(invoicingReq, env);
       return cors(resp);
     }
 
@@ -1210,6 +1277,24 @@ export default {
       return cors(resp);
     }
 
+    // --- AI Support Route (all /api/ai-support/* endpoints) ---
+    if (url.pathname.startsWith("/api/ai-support")) {
+      const reqPath = url.pathname.replace(/^\/api\/ai-support/, "");
+      const aiReq = new Request(reqPath || "/", req);
+      Object.defineProperty(aiReq, "params", { value: {} });
+      const resp = await aiSupportRouter.handle(aiReq, env);
+      return cors(resp);
+    }
+
+    // --- Workflow Router (all /api/workflows/* endpoints) ---
+    if (url.pathname.startsWith("/api/workflows")) {
+      const reqPath = url.pathname.replace(/^\/api\/workflows/, "");
+      const workflowReq = new Request(reqPath || "/", req);
+      Object.defineProperty(workflowReq, "params", { value: {} });
+      const resp = await workflowRouter.handle(workflowReq, env);
+      return cors(resp);
+    }
+
     // --- LMS API Route (all /api/lms/* endpoints) ---
     if (url.pathname.startsWith("/api/lms")) {
       // itty-router expects the path only (no query)
@@ -1226,6 +1311,13 @@ export default {
     // LMS Payment Gateway
     if (url.pathname === "/api/lms/payment" && request.method === "POST") {
       return await lmsPaymentRouter.handle(request, event.target.env);
+    }
+
+    // --- Admin Email Routes Endpoint ---
+    if (url.pathname === "/api/admin/email-routes" && req.method === "GET") {
+      return cors(new Response(JSON.stringify(ADMIN_EMAIL_ROUTES), {
+        headers: { "Content-Type": "application/json" }
+      }));
     }
 
     return new Response("Not Found", { status: 404 });

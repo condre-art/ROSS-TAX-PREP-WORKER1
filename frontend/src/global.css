@@ -13,12 +13,34 @@
   --shadow: 0 2px 6px rgba(44,62,80,0.08);
 }
 
+html, body, #root {
+  height: 100%;
+  width: 100%;
+}
+
 body {
   background: var(--color-bg);
   color: var(--color-text);
   font-family: var(--font-body);
   margin: 0;
   padding: 0;
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+}
+
+main {
+  flex: 1;
+  position: relative;
+  z-index: 1;
+  background: white;
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><text x="100" y="100" font-size="80" font-weight="bold" text-anchor="middle" dominant-baseline="middle" fill="%23003366" opacity="0.08" font-family="Georgia, serif">ROSS</text></svg>');
+  background-attachment: fixed;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 400px 400px;
 }
 
 /* Dark theme overrides */

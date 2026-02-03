@@ -1,10 +1,12 @@
 import jsPDF from "jspdf";
-import logo from "../public/rtb-logo.png";
 
 export function generateServicesPricingPDF(returnDoc = false) {
   const doc = new jsPDF();
-  // Logo
-  doc.addImage(logo, "PNG", 60, 10, 90, 30);
+  // Logo - using text based branding
+  doc.setFont("georgia", "bold");
+  doc.setFontSize(28);
+  doc.setTextColor(243, 160, 6); // Gold
+  doc.text("ROSS", 20, 25);
   // Title
   doc.setFont("times", "bold");
   doc.setFontSize(22);

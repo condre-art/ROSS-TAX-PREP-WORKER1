@@ -1,10 +1,12 @@
 import jsPDF from "jspdf";
-import logo from "../public/rtb-logo.png";
 
 export function generateEngagementAgreementPDF(returnDoc = false) {
   const doc = new jsPDF();
-  // Logo watermark
-  doc.addImage(logo, "PNG", 60, 10, 90, 30, undefined, 'FAST', 0.1);
+  // Logo watermark - text based branding
+  doc.setFont("georgia", "bold");
+  doc.setFontSize(28);
+  doc.setTextColor(243, 160, 6); // Gold
+  doc.text("ROSS", 20, 25);
   // Title
   doc.setFont("times", "bold");
   doc.setFontSize(20);
@@ -39,9 +41,16 @@ export function generateEngagementAgreementPDF(returnDoc = false) {
   );
   // Signature page
   doc.addPage();
-  doc.addImage(logo, "PNG", 60, 10, 90, 30, undefined, 'FAST', 0.1);
+  // Logo watermark on signature page
+  doc.setFont("georgia", "bold");
+  doc.setFontSize(28);
+  doc.setTextColor(243, 160, 6); // Gold
+  doc.text("ROSS", 20, 25);
+  doc.setFont("times", "bold");
   doc.setFontSize(16);
+  doc.setTextColor(11, 35, 59);
   doc.text("Signature Page", 105, 50, { align: "center" });
+  doc.setFont("helvetica", "normal");
   doc.setFontSize(12);
   doc.text("Client Signature: ___________________________", 30, 90);
   doc.text("Date: _______________", 30, 105);

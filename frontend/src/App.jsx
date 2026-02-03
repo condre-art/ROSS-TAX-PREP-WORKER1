@@ -1,19 +1,17 @@
 
-import Navbar from "./components/Navbar";
 import React, { useEffect, useState } from "react";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import Header from "./components/Header";
+import FooterComponent from "./components/Footer";
+import Home from "./pages/Home";
+import Services from "./pages/Services";
+import Intake from "./pages/Intake";
+import Success from "./pages/Success";
+import CRM from "./pages/CRM";
 import FAQ from "./pages/FAQ";
 import EFileWizard from "./pages/EFileWizard";
-
-function Footer() {
-  return (
-    <footer className="footer">
-      <div className="container footer-inner">
-        <div>© {new Date().getFullYear()} Ross Tax &amp; Bookkeeping. All rights reserved.</div>
-        <div className="ptin">Condre Ross | Owner | Lead Tax Professional | PTIN P03215544</div>
-      </div>
-    </footer>
-  );
-}
+import DIYEFileWizard from "./pages/DIYEFileWizard";
+import Invoice from "./pages/Invoice";
 
 export default function App() {
   const [darkMode, setDarkMode] = useState(() => {
@@ -38,7 +36,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <Navbar />
+      <Header />
       <main>
         <Routes>
           <Route path="/" element={<Home />} />
@@ -48,10 +46,12 @@ export default function App() {
           <Route path="/crm" element={<CRM />} />
           <Route path="/lms" element={<LazyLms />} />
           <Route path="/efile" element={<EFileWizard />} />
+          <Route path="/diy-efile" element={<DIYEFileWizard />} />
+          <Route path="/invoice" element={<Invoice />} />
           <Route path="/faq" element={<FAQ />} />
         </Routes>
       </main>
-      <Footer />
+      <FooterComponent />
     </BrowserRouter>
   );
 }

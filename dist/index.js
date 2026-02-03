@@ -10442,6 +10442,43 @@ var BUSINESS_INFO2 = {
   google_verification_date: "2026-01-28",
   location_id: "ross-tax-killeen-tx"
 };
+var ADMIN_EMAIL_ROUTES = {
+  // Owner/CEO
+  condre: {
+    name: "Condre Ross",
+    email: "condre@rosstaxprepandbookkeeping.com",
+    role: "owner_ceo",
+    departments: ["executive", "compliance", "strategy"]
+  },
+  // General Admin
+  admin: {
+    name: "Administrator",
+    email: "admin@rosstaxprepandbookkeeping.com",
+    role: "admin",
+    departments: ["administration", "operations"]
+  },
+  // Client Support & 1040-X (Extensions)
+  support: {
+    name: "Support Team",
+    email: "info@rosstaxprepandbookkeeping.com",
+    role: "support",
+    departments: ["client_services", "1040x_support", "tax_amendments"]
+  },
+  // ERO Employees & Help Desk
+  hr: {
+    name: "HR & Help Desk",
+    email: "hr@rosstaxprepandbookkeeping.com",
+    role: "hr_helpdesk",
+    departments: ["human_resources", "ero_support", "employee_assistance"]
+  },
+  // Reviews & Concerns
+  experience: {
+    name: "Experience Team",
+    email: "experience@rosstaxprepandbookkeeping.com",
+    role: "experience",
+    departments: ["customer_feedback", "quality_assurance", "compliance_reviews"]
+  }
+};
 async function verifyAuth(req, env) {
   const authHeader = req.headers.get("Authorization");
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -10487,10 +10524,19 @@ async function seedAdminIfNone(env) {
     }
     if (row.count === 0) {
       const password_hash = await bcryptjs_default.hash("Admin123!", 10);
-      await env.DB.prepare(
-        "INSERT INTO staff (name, email, password_hash, role) VALUES (?, ?, ?, 'admin')"
-      ).bind("Administrator", "admin@rosstaxprepandbookkeeping.com", password_hash).run();
-      console.log("Admin user seeded.");
+      const adminAccounts = [
+        { name: "Condre Ross", email: "condre@rosstaxprepandbookkeeping.com", role: "admin" },
+        { name: "Administrator", email: "admin@rosstaxprepandbookkeeping.com", role: "admin" },
+        { name: "Support Team", email: "info@rosstaxprepandbookkeeping.com", role: "staff" },
+        { name: "HR & Help Desk", email: "hr@rosstaxprepandbookkeeping.com", role: "staff" },
+        { name: "Experience Team", email: "experience@rosstaxprepandbookkeeping.com", role: "staff" }
+      ];
+      for (const account of adminAccounts) {
+        await env.DB.prepare(
+          "INSERT INTO staff (name, email, password_hash, role) VALUES (?, ?, ?, ?)"
+        ).bind(account.name, account.email, password_hash, account.role).run();
+      }
+      console.log(`\u2705 Admin staff seeded: ${adminAccounts.length} accounts created`);
     }
   } catch (e) {
     console.log("seedAdminIfNone error:", e);
@@ -11473,6 +11519,11 @@ var index_default2 = {
     if (url.pathname === "/api/lms/payment" && request.method === "POST") {
       return await lmsPaymentRouter.handle(request, event.target.env);
     }
+    if (url.pathname === "/api/admin/email-routes" && req.method === "GET") {
+      return cors(new Response(JSON.stringify(ADMIN_EMAIL_ROUTES), {
+        headers: { "Content-Type": "application/json" }
+      }));
+    }
     return new Response("Not Found", { status: 404 });
   },
   // Scheduled handler for IRS sync and data retention
@@ -11483,6 +11534,7 @@ var index_default2 = {
   }
 };
 export {
+  ADMIN_EMAIL_ROUTES,
   BUSINESS_INFO2 as BUSINESS_INFO,
   SOCIAL_MEDIA_HANDLES,
   index_default2 as default
