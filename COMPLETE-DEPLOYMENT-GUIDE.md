@@ -178,6 +178,17 @@ After deployment:
 ✅ **D1 Database** has automatic backups  
 ✅ **MailChannels** encrypts emails in transit  
 
+## Network Ports (Allowlist)
+
+| Port | Protocol | Purpose |
+|------|----------|---------|
+| 80   | TCP      | HTTP (legacy updates, redirects) |
+| 443  | TCP      | HTTPS (e-file transmission, licensing, cloud sync) |
+| 21   | TCP      | FTP (older update delivery systems) |
+| 22   | TCP      | SFTP (secure file transfer, newer systems) |
+| 53   | UDP/TCP  | DNS resolution |
+| 123  | UDP      | Time sync (certificates & licensing validation) |
+
 ---
 
 ## Support
