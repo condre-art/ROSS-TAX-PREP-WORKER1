@@ -31,6 +31,565 @@ var require_crypto = __commonJS({
   }
 });
 
+// node_modules/itty-router/index.mjs
+var t = /* @__PURE__ */ __name(({ base: e = "", routes: t2 = [], ...r2 } = {}) => ({ __proto__: new Proxy({}, { get: /* @__PURE__ */ __name((r3, o2, a, s) => (r4, ...c) => t2.push([o2.toUpperCase?.(), RegExp(`^${(s = (e + r4).replace(/\/+(\/|$)/g, "$1")).replace(/(\/?\.?):(\w+)\+/g, "($1(?<$2>*))").replace(/(\/?\.?):(\w+)/g, "($1(?<$2>[^$1/]+?))").replace(/\./g, "\\.").replace(/(\/?)\*/g, "($1.*)?")}/*$`), c, s]) && a, "get") }), routes: t2, ...r2, async fetch(e2, ...o2) {
+  let a, s, c = new URL(e2.url), n = e2.query = { __proto__: null };
+  for (let [e3, t3] of c.searchParams) n[e3] = n[e3] ? [].concat(n[e3], t3) : t3;
+  e: try {
+    for (let t3 of r2.before || []) if (null != (a = await t3(e2.proxy ?? e2, ...o2))) break e;
+    t: for (let [r3, n2, l, i] of t2) if ((r3 == e2.method || "ALL" == r3) && (s = c.pathname.match(n2))) {
+      e2.params = s.groups || {}, e2.route = i;
+      for (let t3 of l) if (null != (a = await t3(e2.proxy ?? e2, ...o2))) break t;
+    }
+  } catch (t3) {
+    if (!r2.catch) throw t3;
+    a = await r2.catch(t3, e2.proxy ?? e2, ...o2);
+  }
+  try {
+    for (let t3 of r2.finally || []) a = await t3(a, e2.proxy ?? e2, ...o2) ?? a;
+  } catch (t3) {
+    if (!r2.catch) throw t3;
+    a = await r2.catch(t3, e2.proxy ?? e2, ...o2);
+  }
+  return a;
+} }), "t");
+var r = /* @__PURE__ */ __name((e = "text/plain; charset=utf-8", t2) => (r2, o2 = {}) => {
+  if (void 0 === r2 || r2 instanceof Response) return r2;
+  const a = new Response(t2?.(r2) ?? r2, o2.url ? void 0 : o2);
+  return a.headers.set("content-type", e), a;
+}, "r");
+var o = r("application/json; charset=utf-8", JSON.stringify);
+var p = r("text/plain; charset=utf-8", String);
+var f = r("text/html");
+var u = r("image/jpeg");
+var h = r("image/png");
+var g = r("image/webp");
+
+// node_modules/@tsndr/cloudflare-worker-jwt/index.js
+function bytesToByteString(bytes) {
+  let byteStr = "";
+  for (let i = 0; i < bytes.byteLength; i++) {
+    byteStr += String.fromCharCode(bytes[i]);
+  }
+  return byteStr;
+}
+__name(bytesToByteString, "bytesToByteString");
+function byteStringToBytes(byteStr) {
+  let bytes = new Uint8Array(byteStr.length);
+  for (let i = 0; i < byteStr.length; i++) {
+    bytes[i] = byteStr.charCodeAt(i);
+  }
+  return bytes;
+}
+__name(byteStringToBytes, "byteStringToBytes");
+function arrayBufferToBase64String(arrayBuffer) {
+  return btoa(bytesToByteString(new Uint8Array(arrayBuffer)));
+}
+__name(arrayBufferToBase64String, "arrayBufferToBase64String");
+function base64StringToUint8Array(b64str) {
+  return byteStringToBytes(atob(b64str));
+}
+__name(base64StringToUint8Array, "base64StringToUint8Array");
+function textToUint8Array(str) {
+  return byteStringToBytes(str);
+}
+__name(textToUint8Array, "textToUint8Array");
+function arrayBufferToBase64Url(arrayBuffer) {
+  return arrayBufferToBase64String(arrayBuffer).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+}
+__name(arrayBufferToBase64Url, "arrayBufferToBase64Url");
+function base64UrlToUint8Array(b64url) {
+  return base64StringToUint8Array(b64url.replace(/-/g, "+").replace(/_/g, "/").replace(/\s/g, ""));
+}
+__name(base64UrlToUint8Array, "base64UrlToUint8Array");
+function textToBase64Url(str) {
+  const encoder = new TextEncoder();
+  const charCodes = encoder.encode(str);
+  const binaryStr = String.fromCharCode(...charCodes);
+  return btoa(binaryStr).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+}
+__name(textToBase64Url, "textToBase64Url");
+function pemToBinary(pem) {
+  return base64StringToUint8Array(pem.replace(/-+(BEGIN|END).*/g, "").replace(/\s/g, ""));
+}
+__name(pemToBinary, "pemToBinary");
+async function importTextSecret(key, algorithm, keyUsages) {
+  return await crypto.subtle.importKey("raw", textToUint8Array(key), algorithm, true, keyUsages);
+}
+__name(importTextSecret, "importTextSecret");
+async function importJwk(key, algorithm, keyUsages) {
+  return await crypto.subtle.importKey("jwk", key, algorithm, true, keyUsages);
+}
+__name(importJwk, "importJwk");
+async function importPublicKey(key, algorithm, keyUsages) {
+  return await crypto.subtle.importKey("spki", pemToBinary(key), algorithm, true, keyUsages);
+}
+__name(importPublicKey, "importPublicKey");
+async function importPrivateKey(key, algorithm, keyUsages) {
+  return await crypto.subtle.importKey("pkcs8", pemToBinary(key), algorithm, true, keyUsages);
+}
+__name(importPrivateKey, "importPrivateKey");
+async function importKey(key, algorithm, keyUsages) {
+  if (typeof key === "object")
+    return importJwk(key, algorithm, keyUsages);
+  if (typeof key !== "string")
+    throw new Error("Unsupported key type!");
+  if (key.includes("PUBLIC"))
+    return importPublicKey(key, algorithm, keyUsages);
+  if (key.includes("PRIVATE"))
+    return importPrivateKey(key, algorithm, keyUsages);
+  return importTextSecret(key, algorithm, keyUsages);
+}
+__name(importKey, "importKey");
+function decodePayload(raw2) {
+  const bytes = Array.from(atob(raw2), (char) => char.charCodeAt(0));
+  const decodedString = new TextDecoder("utf-8").decode(new Uint8Array(bytes));
+  return JSON.parse(decodedString);
+}
+__name(decodePayload, "decodePayload");
+if (typeof crypto === "undefined" || !crypto.subtle)
+  throw new Error("SubtleCrypto not supported!");
+var algorithms = {
+  none: { name: "none" },
+  ES256: { name: "ECDSA", namedCurve: "P-256", hash: { name: "SHA-256" } },
+  ES384: { name: "ECDSA", namedCurve: "P-384", hash: { name: "SHA-384" } },
+  ES512: { name: "ECDSA", namedCurve: "P-521", hash: { name: "SHA-512" } },
+  HS256: { name: "HMAC", hash: { name: "SHA-256" } },
+  HS384: { name: "HMAC", hash: { name: "SHA-384" } },
+  HS512: { name: "HMAC", hash: { name: "SHA-512" } },
+  RS256: { name: "RSASSA-PKCS1-v1_5", hash: { name: "SHA-256" } },
+  RS384: { name: "RSASSA-PKCS1-v1_5", hash: { name: "SHA-384" } },
+  RS512: { name: "RSASSA-PKCS1-v1_5", hash: { name: "SHA-512" } }
+};
+async function sign(payload, secret, options = "HS256") {
+  if (typeof options === "string")
+    options = { algorithm: options };
+  options = { algorithm: "HS256", header: { typ: "JWT", ...options.header ?? {} }, ...options };
+  if (!payload || typeof payload !== "object")
+    throw new Error("payload must be an object");
+  if (options.algorithm !== "none" && (!secret || typeof secret !== "string" && typeof secret !== "object"))
+    throw new Error("secret must be a string, a JWK object or a CryptoKey object");
+  if (typeof options.algorithm !== "string")
+    throw new Error("options.algorithm must be a string");
+  const algorithm = algorithms[options.algorithm];
+  if (!algorithm)
+    throw new Error("algorithm not found");
+  if (!payload.iat)
+    payload.iat = Math.floor(Date.now() / 1e3);
+  const partialToken = `${textToBase64Url(JSON.stringify({ ...options.header, alg: options.algorithm }))}.${textToBase64Url(JSON.stringify(payload))}`;
+  if (options.algorithm === "none")
+    return partialToken;
+  const key = secret instanceof CryptoKey ? secret : await importKey(secret, algorithm, ["sign"]);
+  const signature = await crypto.subtle.sign(algorithm, key, textToUint8Array(partialToken));
+  return `${partialToken}.${arrayBufferToBase64Url(signature)}`;
+}
+__name(sign, "sign");
+async function verify(token, secret, options = "HS256") {
+  if (typeof options === "string")
+    options = { algorithm: options };
+  options = { algorithm: "HS256", clockTolerance: 0, throwError: false, ...options };
+  if (typeof token !== "string")
+    throw new Error("token must be a string");
+  if (options.algorithm !== "none" && typeof secret !== "string" && typeof secret !== "object")
+    throw new Error("secret must be a string, a JWK object or a CryptoKey object");
+  if (typeof options.algorithm !== "string")
+    throw new Error("options.algorithm must be a string");
+  const tokenParts = token.split(".", 3);
+  if (tokenParts.length < 2)
+    throw new Error("token must consist of 2 or more parts");
+  const [tokenHeader, tokenPayload, tokenSignature] = tokenParts;
+  const algorithm = algorithms[options.algorithm];
+  if (!algorithm)
+    throw new Error("algorithm not found");
+  const decodedToken = decode(token);
+  try {
+    if (decodedToken.header?.alg !== options.algorithm)
+      throw new Error("INVALID_SIGNATURE");
+    if (decodedToken.payload) {
+      const now = Math.floor(Date.now() / 1e3);
+      if (decodedToken.payload.nbf && decodedToken.payload.nbf > now && decodedToken.payload.nbf - now > (options.clockTolerance ?? 0))
+        throw new Error("NOT_YET_VALID");
+      if (decodedToken.payload.exp && decodedToken.payload.exp <= now && now - decodedToken.payload.exp > (options.clockTolerance ?? 0))
+        throw new Error("EXPIRED");
+    }
+    if (algorithm.name === "none")
+      return decodedToken;
+    const key = secret instanceof CryptoKey ? secret : await importKey(secret, algorithm, ["verify"]);
+    if (!await crypto.subtle.verify(algorithm, key, base64UrlToUint8Array(tokenSignature), textToUint8Array(`${tokenHeader}.${tokenPayload}`)))
+      throw new Error("INVALID_SIGNATURE");
+    return decodedToken;
+  } catch (err) {
+    if (options.throwError)
+      throw err;
+    return;
+  }
+}
+__name(verify, "verify");
+function decode(token) {
+  return {
+    header: decodePayload(token.split(".")[0].replace(/-/g, "+").replace(/_/g, "/")),
+    payload: decodePayload(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))
+  };
+}
+__name(decode, "decode");
+var index_default = {
+  sign,
+  verify,
+  decode
+};
+
+// src/middleware/auth.ts
+async function verifyJWT(req, env) {
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return null;
+  }
+  const token = authHeader.substring(7);
+  try {
+    const isValid = await index_default.verify(token, env.JWT_SECRET || "your-secret-key-change-in-production");
+    if (!isValid) {
+      return null;
+    }
+    const { payload } = index_default.decode(token);
+    return payload;
+  } catch (error) {
+    console.error("JWT verification failed:", error);
+    return null;
+  }
+}
+__name(verifyJWT, "verifyJWT");
+async function requireAuth(req, env) {
+  const user = await verifyJWT(req, env);
+  if (!user) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+  return user;
+}
+__name(requireAuth, "requireAuth");
+async function requireAdmin(req, env) {
+  const user = await verifyJWT(req, env);
+  if (!user) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+  if (user.role !== "admin") {
+    return new Response(JSON.stringify({ error: "Forbidden - Admin access required" }), {
+      status: 403,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+  return user;
+}
+__name(requireAdmin, "requireAdmin");
+async function requireStaff(req, env) {
+  const user = await verifyJWT(req, env);
+  if (!user) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+  if (user.role !== "admin" && user.role !== "staff") {
+    return new Response(JSON.stringify({ error: "Forbidden - Staff access required" }), {
+      status: 403,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+  return user;
+}
+__name(requireStaff, "requireStaff");
+
+// node_modules/uuid/dist/stringify.js
+var byteToHex = [];
+for (let i = 0; i < 256; ++i) {
+  byteToHex.push((i + 256).toString(16).slice(1));
+}
+function unsafeStringify(arr, offset = 0) {
+  return (byteToHex[arr[offset + 0]] + byteToHex[arr[offset + 1]] + byteToHex[arr[offset + 2]] + byteToHex[arr[offset + 3]] + "-" + byteToHex[arr[offset + 4]] + byteToHex[arr[offset + 5]] + "-" + byteToHex[arr[offset + 6]] + byteToHex[arr[offset + 7]] + "-" + byteToHex[arr[offset + 8]] + byteToHex[arr[offset + 9]] + "-" + byteToHex[arr[offset + 10]] + byteToHex[arr[offset + 11]] + byteToHex[arr[offset + 12]] + byteToHex[arr[offset + 13]] + byteToHex[arr[offset + 14]] + byteToHex[arr[offset + 15]]).toLowerCase();
+}
+__name(unsafeStringify, "unsafeStringify");
+
+// node_modules/uuid/dist/rng.js
+var getRandomValues;
+var rnds8 = new Uint8Array(16);
+function rng() {
+  if (!getRandomValues) {
+    if (typeof crypto === "undefined" || !crypto.getRandomValues) {
+      throw new Error("crypto.getRandomValues() not supported. See https://github.com/uuidjs/uuid#getrandomvalues-not-supported");
+    }
+    getRandomValues = crypto.getRandomValues.bind(crypto);
+  }
+  return getRandomValues(rnds8);
+}
+__name(rng, "rng");
+
+// node_modules/uuid/dist/native.js
+var randomUUID = typeof crypto !== "undefined" && crypto.randomUUID && crypto.randomUUID.bind(crypto);
+var native_default = { randomUUID };
+
+// node_modules/uuid/dist/v4.js
+function _v4(options, buf, offset) {
+  options = options || {};
+  const rnds = options.random ?? options.rng?.() ?? rng();
+  if (rnds.length < 16) {
+    throw new Error("Random bytes length must be >= 16");
+  }
+  rnds[6] = rnds[6] & 15 | 64;
+  rnds[8] = rnds[8] & 63 | 128;
+  if (buf) {
+    offset = offset || 0;
+    if (offset < 0 || offset + 16 > buf.length) {
+      throw new RangeError(`UUID byte range ${offset}:${offset + 15} is out of buffer bounds`);
+    }
+    for (let i = 0; i < 16; ++i) {
+      buf[offset + i] = rnds[i];
+    }
+    return buf;
+  }
+  return unsafeStringify(rnds);
+}
+__name(_v4, "_v4");
+function v4(options, buf, offset) {
+  if (native_default.randomUUID && !buf && !options) {
+    return native_default.randomUUID();
+  }
+  return _v4(options, buf, offset);
+}
+__name(v4, "v4");
+var v4_default = v4;
+
+// src/routes/consult.ts
+var consultRouter = t();
+var SLOT_DURATION_MIN = 30;
+var SLOT_FEE = 50;
+function getSlots() {
+  const slots = [];
+  const now = /* @__PURE__ */ new Date();
+  for (let i = 0; i < 48; i++) {
+    const slot = new Date(now.getTime() + i * SLOT_DURATION_MIN * 6e4);
+    slots.push({
+      id: v4_default(),
+      start: slot.toISOString(),
+      end: new Date(slot.getTime() + SLOT_DURATION_MIN * 6e4).toISOString(),
+      booked: false,
+      client_id: null,
+      fee: SLOT_FEE
+    });
+  }
+  return slots;
+}
+__name(getSlots, "getSlots");
+consultRouter.get("/slots", async (req, env) => {
+  const slots = getSlots();
+  return new Response(JSON.stringify(slots.filter((s) => !s.booked)), { headers: { "Content-Type": "application/json" } });
+});
+consultRouter.post("/book", async (req, env) => {
+  const user = await requireAuth(req, env);
+  if (user instanceof Response) return user;
+  const body = await req.json();
+  const slot_id = body.slot_id;
+  if (!slot_id) return new Response(JSON.stringify({ error: "Missing slot_id" }), { status: 400 });
+  const slots = getSlots();
+  const slot = slots.find((s) => s.id === slot_id && !s.booked);
+  if (!slot) return new Response(JSON.stringify({ error: "Slot unavailable" }), { status: 400 });
+  slot.booked = true;
+  slot.client_id = user.id;
+  return new Response(JSON.stringify({ success: true, slot }), { headers: { "Content-Type": "application/json" } });
+});
+var consult_default = consultRouter;
+
+// src/utils/audit.ts
+async function logAudit(env, entry, req) {
+  try {
+    const id = v4_default();
+    const ip_address = entry.ip_address || req?.headers.get("CF-Connecting-IP") || req?.headers.get("X-Forwarded-For") || "unknown";
+    const user_agent = entry.user_agent || req?.headers.get("User-Agent") || "unknown";
+    await env.DB.prepare(
+      `INSERT INTO audit_log (id, action, entity, entity_id, user_id, user_role, user_email, details, ip_address, user_agent, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`
+    ).bind(
+      id,
+      entry.action,
+      entry.entity,
+      entry.entity_id || null,
+      entry.user_id || null,
+      entry.user_role || null,
+      entry.user_email || null,
+      entry.details || null,
+      ip_address,
+      user_agent
+    ).run();
+    console.log(`[AUDIT] ${entry.action} on ${entry.entity} by ${entry.user_email || "system"}`);
+  } catch (error) {
+    console.error("Failed to log audit entry:", error);
+  }
+}
+__name(logAudit, "logAudit");
+async function auditPayment(env, transactionId, amount, user, status, req) {
+  await logAudit(env, {
+    action: `payment_${status}`,
+    entity: "payment",
+    entity_id: transactionId,
+    user_id: user.id,
+    user_role: user.role,
+    user_email: user.email,
+    details: JSON.stringify({ amount, currency: "USD" })
+  }, req);
+}
+__name(auditPayment, "auditPayment");
+
+// src/routes/diz.ts
+var dizRouter = t();
+dizRouter.get("/returns", async (req, env) => {
+  const user = await requireAuth(req, env);
+  if (user instanceof Response) return user;
+  const { results } = await env.DB.prepare(
+    `SELECT * FROM returns WHERE client_id = ? ORDER BY updated_at DESC LIMIT 20`
+  ).bind(user.id).all();
+  return new Response(JSON.stringify(results), { headers: { "Content-Type": "application/json" } });
+});
+dizRouter.post("/returns", async (req, env) => {
+  const user = await requireAuth(req, env);
+  if (user instanceof Response) return user;
+  const body = await req.json();
+  const tax_year = body.tax_year;
+  const result = await env.DB.prepare(
+    `INSERT INTO returns (client_id, tax_year, status, updated_at) VALUES (?, ?, 'pending', CURRENT_TIMESTAMP)`
+  ).bind(user.id, tax_year).run();
+  await logAudit(env, { action: "diz_return_create", entity: "returns", entity_id: result.lastRowId, user_id: user.id, user_email: user.email });
+  return new Response(JSON.stringify({ success: true, id: result.lastRowId }), { headers: { "Content-Type": "application/json" } });
+});
+dizRouter.post("/returns/:id/upload", async (req, env) => {
+  const user = await requireAuth(req, env);
+  if (user instanceof Response) return user;
+  await logAudit(env, { action: "diz_upload", entity: "returns", entity_id: req.params?.id, user_id: user.id, user_email: user.email });
+  return new Response(JSON.stringify({ success: true }));
+});
+dizRouter.post("/returns/:id/esign", async (req, env) => {
+  const user = await requireAuth(req, env);
+  if (user instanceof Response) return user;
+  await env.DB.prepare(
+    `UPDATE returns SET status = 'signed', updated_at = CURRENT_TIMESTAMP WHERE id = ? AND client_id = ?`
+  ).bind(req.params?.id, user.id).run();
+  await logAudit(env, { action: "diz_esign", entity: "returns", entity_id: req.params?.id, user_id: user.id, user_email: user.email });
+  return new Response(JSON.stringify({ success: true }));
+});
+dizRouter.post("/returns/:id/payment", async (req, env) => {
+  const user = await requireAuth(req, env);
+  if (user instanceof Response) return user;
+  await env.DB.prepare(
+    `UPDATE returns SET status = 'paid', updated_at = CURRENT_TIMESTAMP WHERE id = ? AND client_id = ?`
+  ).bind(req.params?.id, user.id).run();
+  await logAudit(env, { action: "diz_payment", entity: "returns", entity_id: req.params?.id, user_id: user.id, user_email: user.email });
+  return new Response(JSON.stringify({ success: true }));
+});
+dizRouter.post("/returns/:id/efile", async (req, env) => {
+  const user = await requireAuth(req, env);
+  if (user instanceof Response) return user;
+  const row = await env.DB.prepare(
+    `SELECT status FROM returns WHERE id = ? AND client_id = ?`
+  ).bind(req.params?.id, user.id).first();
+  if (!row || row.status !== "paid") {
+    return new Response(JSON.stringify({ error: "Payment required before e-file" }), { status: 403 });
+  }
+  await env.DB.prepare(
+    `UPDATE returns SET status = 'efile_submitted', updated_at = CURRENT_TIMESTAMP WHERE id = ? AND client_id = ?`
+  ).bind(req.params?.id, user.id).run();
+  await logAudit(env, { action: "diz_efile", entity: "returns", entity_id: req.params?.id, user_id: user.id, user_email: user.email });
+  return new Response(JSON.stringify({ success: true }));
+});
+dizRouter.get("/returns/:id/status", async (req, env) => {
+  const user = await requireAuth(req, env);
+  if (user instanceof Response) return user;
+  const row = await env.DB.prepare(
+    `SELECT * FROM returns WHERE id = ? AND client_id = ?`
+  ).bind(req.params?.id, user.id).first();
+  if (!row) return new Response(JSON.stringify({ error: "Not found" }), { status: 404 });
+  return new Response(JSON.stringify(row), { headers: { "Content-Type": "application/json" } });
+});
+var diz_default = dizRouter;
+
+// src/routes/ero.ts
+var eroRouter = t();
+eroRouter.get("/returns", async (req, env) => {
+  const authResult = await requireStaff(req, env);
+  if (authResult instanceof Response) return authResult;
+  const user = authResult;
+  const { results } = await env.DB.prepare(
+    `SELECT t.*, c.full_name, c.email FROM efile_transmissions t
+     LEFT JOIN clients c ON t.client_id = c.id
+     WHERE t.status IN ('created', 'pending', 'review', 'awaiting_signature', 'awaiting_payment')
+     ORDER BY t.updated_at DESC LIMIT 100`
+  ).all();
+  return new Response(JSON.stringify(results), { headers: { "Content-Type": "application/json" } });
+});
+eroRouter.post("/returns/:id/claim", async (req, env) => {
+  const authResult = await requireStaff(req, env);
+  if (authResult instanceof Response) return authResult;
+  const user = authResult;
+  const id = req.params?.id;
+  await env.DB.prepare(
+    `UPDATE efile_transmissions SET preparer_id = ?, status = 'review' WHERE id = ? AND (preparer_id IS NULL OR preparer_id = ?)`
+  ).bind(user.id, id, user.id).run();
+  await logAudit(env, { action: "ero_claim", entity: "efile_transmissions", entity_id: id, user_id: user.id, user_email: user.email });
+  return new Response(JSON.stringify({ success: true }));
+});
+eroRouter.post("/returns/:id/compliance", async (req, env) => {
+  const authResult = await requireStaff(req, env);
+  if (authResult instanceof Response) return authResult;
+  const user = authResult;
+  const id = req.params?.id;
+  const body = await req.json();
+  const compliant = body.compliant;
+  const notes = body.notes;
+  await env.DB.prepare(
+    `UPDATE efile_transmissions SET status = ?, compliance_notes = ? WHERE id = ?`
+  ).bind(compliant ? "awaiting_signature" : "review", notes || null, id).run();
+  await logAudit(env, { action: "ero_compliance", entity: "efile_transmissions", entity_id: id, user_id: user.id, user_email: user.email, details: JSON.stringify({ compliant, notes }) });
+  return new Response(JSON.stringify({ success: true }));
+});
+eroRouter.post("/returns/:id/signature", async (req, env) => {
+  const authResult = await requireStaff(req, env);
+  if (authResult instanceof Response) return authResult;
+  const user = authResult;
+  const id = req.params?.id;
+  await env.DB.prepare(
+    `UPDATE efile_transmissions SET status = 'awaiting_payment' WHERE id = ?`
+  ).bind(id).run();
+  await logAudit(env, { action: "ero_signature", entity: "efile_transmissions", entity_id: id, user_id: user.id, user_email: user.email });
+  return new Response(JSON.stringify({ success: true }));
+});
+eroRouter.post("/returns/:id/payment", async (req, env) => {
+  const authResult = await requireStaff(req, env);
+  if (authResult instanceof Response) return authResult;
+  const user = authResult;
+  const id = req.params?.id;
+  await env.DB.prepare(
+    `UPDATE efile_transmissions SET status = 'ready_to_transmit' WHERE id = ?`
+  ).bind(id).run();
+  await logAudit(env, { action: "ero_payment", entity: "efile_transmissions", entity_id: id, user_id: user.id, user_email: user.email });
+  return new Response(JSON.stringify({ success: true }));
+});
+eroRouter.post("/returns/:id/transmit", async (req, env) => {
+  const authResult = await requireStaff(req, env);
+  if (authResult instanceof Response) return authResult;
+  const user = authResult;
+  const id = req.params?.id;
+  const row = await env.DB.prepare("SELECT * FROM efile_transmissions WHERE id = ?").bind(id).first();
+  if (!row) return new Response(JSON.stringify({ error: "Not found" }), { status: 404 });
+  await env.DB.prepare(
+    `UPDATE efile_transmissions SET status = 'transmitting' WHERE id = ?`
+  ).bind(id).run();
+  await logAudit(env, { action: "ero_transmit", entity: "efile_transmissions", entity_id: id, user_id: user.id, user_email: user.email });
+  return new Response(JSON.stringify({ success: true }));
+});
+var ero_default = eroRouter;
+
 // src/health.ts
 function healthRoute() {
   return new Response(
@@ -450,7 +1009,7 @@ function base64_encode(b, len) {
 }
 __name(base64_encode, "base64_encode");
 function base64_decode(s, len) {
-  var off = 0, slen = s.length, olen = 0, rs = [], c1, c2, c3, c4, o, code;
+  var off = 0, slen = s.length, olen = 0, rs = [], c1, c2, c3, c4, o2, code;
   if (len <= 0) throw Error("Illegal len: " + len);
   while (off < slen - 1 && olen < len) {
     code = s.charCodeAt(off++);
@@ -458,22 +1017,22 @@ function base64_decode(s, len) {
     code = s.charCodeAt(off++);
     c2 = code < BASE64_INDEX.length ? BASE64_INDEX[code] : -1;
     if (c1 == -1 || c2 == -1) break;
-    o = c1 << 2 >>> 0;
-    o |= (c2 & 48) >> 4;
-    rs.push(String.fromCharCode(o));
+    o2 = c1 << 2 >>> 0;
+    o2 |= (c2 & 48) >> 4;
+    rs.push(String.fromCharCode(o2));
     if (++olen >= len || off >= slen) break;
     code = s.charCodeAt(off++);
     c3 = code < BASE64_INDEX.length ? BASE64_INDEX[code] : -1;
     if (c3 == -1) break;
-    o = (c2 & 15) << 4 >>> 0;
-    o |= (c3 & 60) >> 2;
-    rs.push(String.fromCharCode(o));
+    o2 = (c2 & 15) << 4 >>> 0;
+    o2 |= (c3 & 60) >> 2;
+    rs.push(String.fromCharCode(o2));
     if (++olen >= len || off >= slen) break;
     code = s.charCodeAt(off++);
     c4 = code < BASE64_INDEX.length ? BASE64_INDEX[code] : -1;
-    o = (c3 & 3) << 6 >>> 0;
-    o |= c4;
-    rs.push(String.fromCharCode(o));
+    o2 = (c3 & 3) << 6 >>> 0;
+    o2 |= c4;
+    rs.push(String.fromCharCode(o2));
     ++olen;
   }
   var res = [];
@@ -1540,89 +2099,89 @@ var C_ORIG = [
   1869963892
 ];
 function _encipher(lr, off, P, S) {
-  var n, l = lr[off], r = lr[off + 1];
+  var n, l = lr[off], r2 = lr[off + 1];
   l ^= P[0];
   n = S[l >>> 24];
   n += S[256 | l >> 16 & 255];
   n ^= S[512 | l >> 8 & 255];
   n += S[768 | l & 255];
-  r ^= n ^ P[1];
-  n = S[r >>> 24];
-  n += S[256 | r >> 16 & 255];
-  n ^= S[512 | r >> 8 & 255];
-  n += S[768 | r & 255];
+  r2 ^= n ^ P[1];
+  n = S[r2 >>> 24];
+  n += S[256 | r2 >> 16 & 255];
+  n ^= S[512 | r2 >> 8 & 255];
+  n += S[768 | r2 & 255];
   l ^= n ^ P[2];
   n = S[l >>> 24];
   n += S[256 | l >> 16 & 255];
   n ^= S[512 | l >> 8 & 255];
   n += S[768 | l & 255];
-  r ^= n ^ P[3];
-  n = S[r >>> 24];
-  n += S[256 | r >> 16 & 255];
-  n ^= S[512 | r >> 8 & 255];
-  n += S[768 | r & 255];
+  r2 ^= n ^ P[3];
+  n = S[r2 >>> 24];
+  n += S[256 | r2 >> 16 & 255];
+  n ^= S[512 | r2 >> 8 & 255];
+  n += S[768 | r2 & 255];
   l ^= n ^ P[4];
   n = S[l >>> 24];
   n += S[256 | l >> 16 & 255];
   n ^= S[512 | l >> 8 & 255];
   n += S[768 | l & 255];
-  r ^= n ^ P[5];
-  n = S[r >>> 24];
-  n += S[256 | r >> 16 & 255];
-  n ^= S[512 | r >> 8 & 255];
-  n += S[768 | r & 255];
+  r2 ^= n ^ P[5];
+  n = S[r2 >>> 24];
+  n += S[256 | r2 >> 16 & 255];
+  n ^= S[512 | r2 >> 8 & 255];
+  n += S[768 | r2 & 255];
   l ^= n ^ P[6];
   n = S[l >>> 24];
   n += S[256 | l >> 16 & 255];
   n ^= S[512 | l >> 8 & 255];
   n += S[768 | l & 255];
-  r ^= n ^ P[7];
-  n = S[r >>> 24];
-  n += S[256 | r >> 16 & 255];
-  n ^= S[512 | r >> 8 & 255];
-  n += S[768 | r & 255];
+  r2 ^= n ^ P[7];
+  n = S[r2 >>> 24];
+  n += S[256 | r2 >> 16 & 255];
+  n ^= S[512 | r2 >> 8 & 255];
+  n += S[768 | r2 & 255];
   l ^= n ^ P[8];
   n = S[l >>> 24];
   n += S[256 | l >> 16 & 255];
   n ^= S[512 | l >> 8 & 255];
   n += S[768 | l & 255];
-  r ^= n ^ P[9];
-  n = S[r >>> 24];
-  n += S[256 | r >> 16 & 255];
-  n ^= S[512 | r >> 8 & 255];
-  n += S[768 | r & 255];
+  r2 ^= n ^ P[9];
+  n = S[r2 >>> 24];
+  n += S[256 | r2 >> 16 & 255];
+  n ^= S[512 | r2 >> 8 & 255];
+  n += S[768 | r2 & 255];
   l ^= n ^ P[10];
   n = S[l >>> 24];
   n += S[256 | l >> 16 & 255];
   n ^= S[512 | l >> 8 & 255];
   n += S[768 | l & 255];
-  r ^= n ^ P[11];
-  n = S[r >>> 24];
-  n += S[256 | r >> 16 & 255];
-  n ^= S[512 | r >> 8 & 255];
-  n += S[768 | r & 255];
+  r2 ^= n ^ P[11];
+  n = S[r2 >>> 24];
+  n += S[256 | r2 >> 16 & 255];
+  n ^= S[512 | r2 >> 8 & 255];
+  n += S[768 | r2 & 255];
   l ^= n ^ P[12];
   n = S[l >>> 24];
   n += S[256 | l >> 16 & 255];
   n ^= S[512 | l >> 8 & 255];
   n += S[768 | l & 255];
-  r ^= n ^ P[13];
-  n = S[r >>> 24];
-  n += S[256 | r >> 16 & 255];
-  n ^= S[512 | r >> 8 & 255];
-  n += S[768 | r & 255];
+  r2 ^= n ^ P[13];
+  n = S[r2 >>> 24];
+  n += S[256 | r2 >> 16 & 255];
+  n ^= S[512 | r2 >> 8 & 255];
+  n += S[768 | r2 & 255];
   l ^= n ^ P[14];
   n = S[l >>> 24];
   n += S[256 | l >> 16 & 255];
   n ^= S[512 | l >> 8 & 255];
   n += S[768 | l & 255];
-  r ^= n ^ P[15];
-  n = S[r >>> 24];
-  n += S[256 | r >> 16 & 255];
-  n ^= S[512 | r >> 8 & 255];
-  n += S[768 | r & 255];
+  r2 ^= n ^ P[15];
+  n = S[r2 >>> 24];
+  n += S[256 | r2 >> 16 & 255];
+  n ^= S[512 | r2 >> 8 & 255];
+  n += S[768 | r2 & 255];
   l ^= n ^ P[16];
-  lr[off] = r ^ P[BLOWFISH_NUM_ROUNDS + 1];
+  lr[off] = r2 ^ P[BLOWFISH_NUM_ROUNDS + 1];
   lr[off + 1] = l;
   return lr;
 }
@@ -1805,238 +2364,6 @@ var bcryptjs_default = {
   decodeBase64
 };
 
-// node_modules/@tsndr/cloudflare-worker-jwt/index.js
-function bytesToByteString(bytes) {
-  let byteStr = "";
-  for (let i = 0; i < bytes.byteLength; i++) {
-    byteStr += String.fromCharCode(bytes[i]);
-  }
-  return byteStr;
-}
-__name(bytesToByteString, "bytesToByteString");
-function byteStringToBytes(byteStr) {
-  let bytes = new Uint8Array(byteStr.length);
-  for (let i = 0; i < byteStr.length; i++) {
-    bytes[i] = byteStr.charCodeAt(i);
-  }
-  return bytes;
-}
-__name(byteStringToBytes, "byteStringToBytes");
-function arrayBufferToBase64String(arrayBuffer) {
-  return btoa(bytesToByteString(new Uint8Array(arrayBuffer)));
-}
-__name(arrayBufferToBase64String, "arrayBufferToBase64String");
-function base64StringToUint8Array(b64str) {
-  return byteStringToBytes(atob(b64str));
-}
-__name(base64StringToUint8Array, "base64StringToUint8Array");
-function textToUint8Array(str) {
-  return byteStringToBytes(str);
-}
-__name(textToUint8Array, "textToUint8Array");
-function arrayBufferToBase64Url(arrayBuffer) {
-  return arrayBufferToBase64String(arrayBuffer).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
-}
-__name(arrayBufferToBase64Url, "arrayBufferToBase64Url");
-function base64UrlToUint8Array(b64url) {
-  return base64StringToUint8Array(b64url.replace(/-/g, "+").replace(/_/g, "/").replace(/\s/g, ""));
-}
-__name(base64UrlToUint8Array, "base64UrlToUint8Array");
-function textToBase64Url(str) {
-  const encoder = new TextEncoder();
-  const charCodes = encoder.encode(str);
-  const binaryStr = String.fromCharCode(...charCodes);
-  return btoa(binaryStr).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
-}
-__name(textToBase64Url, "textToBase64Url");
-function pemToBinary(pem) {
-  return base64StringToUint8Array(pem.replace(/-+(BEGIN|END).*/g, "").replace(/\s/g, ""));
-}
-__name(pemToBinary, "pemToBinary");
-async function importTextSecret(key, algorithm, keyUsages) {
-  return await crypto.subtle.importKey("raw", textToUint8Array(key), algorithm, true, keyUsages);
-}
-__name(importTextSecret, "importTextSecret");
-async function importJwk(key, algorithm, keyUsages) {
-  return await crypto.subtle.importKey("jwk", key, algorithm, true, keyUsages);
-}
-__name(importJwk, "importJwk");
-async function importPublicKey(key, algorithm, keyUsages) {
-  return await crypto.subtle.importKey("spki", pemToBinary(key), algorithm, true, keyUsages);
-}
-__name(importPublicKey, "importPublicKey");
-async function importPrivateKey(key, algorithm, keyUsages) {
-  return await crypto.subtle.importKey("pkcs8", pemToBinary(key), algorithm, true, keyUsages);
-}
-__name(importPrivateKey, "importPrivateKey");
-async function importKey(key, algorithm, keyUsages) {
-  if (typeof key === "object")
-    return importJwk(key, algorithm, keyUsages);
-  if (typeof key !== "string")
-    throw new Error("Unsupported key type!");
-  if (key.includes("PUBLIC"))
-    return importPublicKey(key, algorithm, keyUsages);
-  if (key.includes("PRIVATE"))
-    return importPrivateKey(key, algorithm, keyUsages);
-  return importTextSecret(key, algorithm, keyUsages);
-}
-__name(importKey, "importKey");
-function decodePayload(raw2) {
-  const bytes = Array.from(atob(raw2), (char) => char.charCodeAt(0));
-  const decodedString = new TextDecoder("utf-8").decode(new Uint8Array(bytes));
-  return JSON.parse(decodedString);
-}
-__name(decodePayload, "decodePayload");
-if (typeof crypto === "undefined" || !crypto.subtle)
-  throw new Error("SubtleCrypto not supported!");
-var algorithms = {
-  none: { name: "none" },
-  ES256: { name: "ECDSA", namedCurve: "P-256", hash: { name: "SHA-256" } },
-  ES384: { name: "ECDSA", namedCurve: "P-384", hash: { name: "SHA-384" } },
-  ES512: { name: "ECDSA", namedCurve: "P-521", hash: { name: "SHA-512" } },
-  HS256: { name: "HMAC", hash: { name: "SHA-256" } },
-  HS384: { name: "HMAC", hash: { name: "SHA-384" } },
-  HS512: { name: "HMAC", hash: { name: "SHA-512" } },
-  RS256: { name: "RSASSA-PKCS1-v1_5", hash: { name: "SHA-256" } },
-  RS384: { name: "RSASSA-PKCS1-v1_5", hash: { name: "SHA-384" } },
-  RS512: { name: "RSASSA-PKCS1-v1_5", hash: { name: "SHA-512" } }
-};
-async function sign(payload, secret, options = "HS256") {
-  if (typeof options === "string")
-    options = { algorithm: options };
-  options = { algorithm: "HS256", header: { typ: "JWT", ...options.header ?? {} }, ...options };
-  if (!payload || typeof payload !== "object")
-    throw new Error("payload must be an object");
-  if (options.algorithm !== "none" && (!secret || typeof secret !== "string" && typeof secret !== "object"))
-    throw new Error("secret must be a string, a JWK object or a CryptoKey object");
-  if (typeof options.algorithm !== "string")
-    throw new Error("options.algorithm must be a string");
-  const algorithm = algorithms[options.algorithm];
-  if (!algorithm)
-    throw new Error("algorithm not found");
-  if (!payload.iat)
-    payload.iat = Math.floor(Date.now() / 1e3);
-  const partialToken = `${textToBase64Url(JSON.stringify({ ...options.header, alg: options.algorithm }))}.${textToBase64Url(JSON.stringify(payload))}`;
-  if (options.algorithm === "none")
-    return partialToken;
-  const key = secret instanceof CryptoKey ? secret : await importKey(secret, algorithm, ["sign"]);
-  const signature = await crypto.subtle.sign(algorithm, key, textToUint8Array(partialToken));
-  return `${partialToken}.${arrayBufferToBase64Url(signature)}`;
-}
-__name(sign, "sign");
-async function verify(token, secret, options = "HS256") {
-  if (typeof options === "string")
-    options = { algorithm: options };
-  options = { algorithm: "HS256", clockTolerance: 0, throwError: false, ...options };
-  if (typeof token !== "string")
-    throw new Error("token must be a string");
-  if (options.algorithm !== "none" && typeof secret !== "string" && typeof secret !== "object")
-    throw new Error("secret must be a string, a JWK object or a CryptoKey object");
-  if (typeof options.algorithm !== "string")
-    throw new Error("options.algorithm must be a string");
-  const tokenParts = token.split(".", 3);
-  if (tokenParts.length < 2)
-    throw new Error("token must consist of 2 or more parts");
-  const [tokenHeader, tokenPayload, tokenSignature] = tokenParts;
-  const algorithm = algorithms[options.algorithm];
-  if (!algorithm)
-    throw new Error("algorithm not found");
-  const decodedToken = decode(token);
-  try {
-    if (decodedToken.header?.alg !== options.algorithm)
-      throw new Error("INVALID_SIGNATURE");
-    if (decodedToken.payload) {
-      const now = Math.floor(Date.now() / 1e3);
-      if (decodedToken.payload.nbf && decodedToken.payload.nbf > now && decodedToken.payload.nbf - now > (options.clockTolerance ?? 0))
-        throw new Error("NOT_YET_VALID");
-      if (decodedToken.payload.exp && decodedToken.payload.exp <= now && now - decodedToken.payload.exp > (options.clockTolerance ?? 0))
-        throw new Error("EXPIRED");
-    }
-    if (algorithm.name === "none")
-      return decodedToken;
-    const key = secret instanceof CryptoKey ? secret : await importKey(secret, algorithm, ["verify"]);
-    if (!await crypto.subtle.verify(algorithm, key, base64UrlToUint8Array(tokenSignature), textToUint8Array(`${tokenHeader}.${tokenPayload}`)))
-      throw new Error("INVALID_SIGNATURE");
-    return decodedToken;
-  } catch (err) {
-    if (options.throwError)
-      throw err;
-    return;
-  }
-}
-__name(verify, "verify");
-function decode(token) {
-  return {
-    header: decodePayload(token.split(".")[0].replace(/-/g, "+").replace(/_/g, "/")),
-    payload: decodePayload(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))
-  };
-}
-__name(decode, "decode");
-var index_default = {
-  sign,
-  verify,
-  decode
-};
-
-// node_modules/uuid/dist/stringify.js
-var byteToHex = [];
-for (let i = 0; i < 256; ++i) {
-  byteToHex.push((i + 256).toString(16).slice(1));
-}
-function unsafeStringify(arr, offset = 0) {
-  return (byteToHex[arr[offset + 0]] + byteToHex[arr[offset + 1]] + byteToHex[arr[offset + 2]] + byteToHex[arr[offset + 3]] + "-" + byteToHex[arr[offset + 4]] + byteToHex[arr[offset + 5]] + "-" + byteToHex[arr[offset + 6]] + byteToHex[arr[offset + 7]] + "-" + byteToHex[arr[offset + 8]] + byteToHex[arr[offset + 9]] + "-" + byteToHex[arr[offset + 10]] + byteToHex[arr[offset + 11]] + byteToHex[arr[offset + 12]] + byteToHex[arr[offset + 13]] + byteToHex[arr[offset + 14]] + byteToHex[arr[offset + 15]]).toLowerCase();
-}
-__name(unsafeStringify, "unsafeStringify");
-
-// node_modules/uuid/dist/rng.js
-var getRandomValues;
-var rnds8 = new Uint8Array(16);
-function rng() {
-  if (!getRandomValues) {
-    if (typeof crypto === "undefined" || !crypto.getRandomValues) {
-      throw new Error("crypto.getRandomValues() not supported. See https://github.com/uuidjs/uuid#getrandomvalues-not-supported");
-    }
-    getRandomValues = crypto.getRandomValues.bind(crypto);
-  }
-  return getRandomValues(rnds8);
-}
-__name(rng, "rng");
-
-// node_modules/uuid/dist/native.js
-var randomUUID = typeof crypto !== "undefined" && crypto.randomUUID && crypto.randomUUID.bind(crypto);
-var native_default = { randomUUID };
-
-// node_modules/uuid/dist/v4.js
-function _v4(options, buf, offset) {
-  options = options || {};
-  const rnds = options.random ?? options.rng?.() ?? rng();
-  if (rnds.length < 16) {
-    throw new Error("Random bytes length must be >= 16");
-  }
-  rnds[6] = rnds[6] & 15 | 64;
-  rnds[8] = rnds[8] & 63 | 128;
-  if (buf) {
-    offset = offset || 0;
-    if (offset < 0 || offset + 16 > buf.length) {
-      throw new RangeError(`UUID byte range ${offset}:${offset + 15} is out of buffer bounds`);
-    }
-    for (let i = 0; i < 16; ++i) {
-      buf[offset + i] = rnds[i];
-    }
-    return buf;
-  }
-  return unsafeStringify(rnds);
-}
-__name(_v4, "_v4");
-function v4(options, buf, offset) {
-  if (native_default.randomUUID && !buf && !options) {
-    return native_default.randomUUID();
-  }
-  return _v4(options, buf, offset);
-}
-__name(v4, "v4");
-var v4_default = v4;
-
 // node_modules/otpauth/dist/otpauth.esm.js
 var uintDecode = /* @__PURE__ */ __name((num) => {
   const buf = new ArrayBuffer(8);
@@ -2063,10 +2390,10 @@ function abytes(b, ...lengths) {
   if (lengths.length > 0 && !lengths.includes(b.length)) throw new Error("Uint8Array expected of length " + lengths + ", got length=" + b.length);
 }
 __name(abytes, "abytes");
-function ahash(h) {
-  if (typeof h !== "function" || typeof h.create !== "function") throw new Error("Hash should be wrapped by utils.createHasher");
-  anumber(h.outputLen);
-  anumber(h.blockLen);
+function ahash(h2) {
+  if (typeof h2 !== "function" || typeof h2.create !== "function") throw new Error("Hash should be wrapped by utils.createHasher");
+  anumber(h2.outputLen);
+  anumber(h2.blockLen);
 }
 __name(ahash, "ahash");
 function aexists(instance, checkFinished = true) {
@@ -2118,7 +2445,7 @@ function byteSwap32(arr) {
   return arr;
 }
 __name(byteSwap32, "byteSwap32");
-var swap32IfBE = isLE ? (u) => u : byteSwap32;
+var swap32IfBE = isLE ? (u2) => u2 : byteSwap32;
 function utf8ToBytes(str) {
   if (typeof str !== "string") throw new Error("string expected");
   return new Uint8Array(new TextEncoder().encode(str));
@@ -2216,9 +2543,9 @@ function setBigUint64(view, byteOffset, value, isLE2) {
   const _u32_max = BigInt(4294967295);
   const wh = Number(value >> _32n2 & _u32_max);
   const wl = Number(value & _u32_max);
-  const h = isLE2 ? 4 : 0;
+  const h2 = isLE2 ? 4 : 0;
   const l = isLE2 ? 0 : 4;
-  view.setUint32(byteOffset + h, wh, isLE2);
+  view.setUint32(byteOffset + h2, wh, isLE2);
   view.setUint32(byteOffset + l, wl, isLE2);
 }
 __name(setBigUint64, "setBigUint64");
@@ -2470,9 +2797,9 @@ function split(lst, le = false) {
   let Ah = new Uint32Array(len);
   let Al = new Uint32Array(len);
   for (let i = 0; i < len; i++) {
-    const { h, l } = fromBig(lst[i], le);
+    const { h: h2, l } = fromBig(lst[i], le);
     [Ah[i], Al[i]] = [
-      h,
+      h2,
       l
     ];
   }
@@ -2482,16 +2809,16 @@ function split(lst, le = false) {
   ];
 }
 __name(split, "split");
-var shrSH = /* @__PURE__ */ __name((h, _l, s) => h >>> s, "shrSH");
-var shrSL = /* @__PURE__ */ __name((h, l, s) => h << 32 - s | l >>> s, "shrSL");
-var rotrSH = /* @__PURE__ */ __name((h, l, s) => h >>> s | l << 32 - s, "rotrSH");
-var rotrSL = /* @__PURE__ */ __name((h, l, s) => h << 32 - s | l >>> s, "rotrSL");
-var rotrBH = /* @__PURE__ */ __name((h, l, s) => h << 64 - s | l >>> s - 32, "rotrBH");
-var rotrBL = /* @__PURE__ */ __name((h, l, s) => h >>> s - 32 | l << 64 - s, "rotrBL");
-var rotlSH = /* @__PURE__ */ __name((h, l, s) => h << s | l >>> 32 - s, "rotlSH");
-var rotlSL = /* @__PURE__ */ __name((h, l, s) => l << s | h >>> 32 - s, "rotlSL");
-var rotlBH = /* @__PURE__ */ __name((h, l, s) => l << s - 32 | h >>> 64 - s, "rotlBH");
-var rotlBL = /* @__PURE__ */ __name((h, l, s) => h << s - 32 | l >>> 64 - s, "rotlBL");
+var shrSH = /* @__PURE__ */ __name((h2, _l, s) => h2 >>> s, "shrSH");
+var shrSL = /* @__PURE__ */ __name((h2, l, s) => h2 << 32 - s | l >>> s, "shrSL");
+var rotrSH = /* @__PURE__ */ __name((h2, l, s) => h2 >>> s | l << 32 - s, "rotrSH");
+var rotrSL = /* @__PURE__ */ __name((h2, l, s) => h2 << 32 - s | l >>> s, "rotrSL");
+var rotrBH = /* @__PURE__ */ __name((h2, l, s) => h2 << 64 - s | l >>> s - 32, "rotrBH");
+var rotrBL = /* @__PURE__ */ __name((h2, l, s) => h2 >>> s - 32 | l << 64 - s, "rotrBL");
+var rotlSH = /* @__PURE__ */ __name((h2, l, s) => h2 << s | l >>> 32 - s, "rotlSH");
+var rotlSL = /* @__PURE__ */ __name((h2, l, s) => l << s | h2 >>> 32 - s, "rotlSL");
+var rotlBH = /* @__PURE__ */ __name((h2, l, s) => l << s - 32 | h2 >>> 64 - s, "rotlBH");
+var rotlBL = /* @__PURE__ */ __name((h2, l, s) => h2 << s - 32 | l >>> 64 - s, "rotlBL");
 function add(Ah, Al, Bh, Bl) {
   const l = (Al >>> 0) + (Bl >>> 0);
   return {
@@ -2931,18 +3258,18 @@ for (let round = 0, R = _1n, x = 1, y = 0; round < 24; round++) {
   ];
   SHA3_PI.push(2 * (5 * y + x));
   SHA3_ROTL.push((round + 1) * (round + 2) / 2 % 64);
-  let t = _0n;
+  let t2 = _0n;
   for (let j = 0; j < 7; j++) {
     R = (R << _1n ^ (R >> _7n) * _0x71n) % _256n;
-    if (R & _2n) t ^= _1n << (_1n << /* @__PURE__ */ BigInt(j)) - _1n;
+    if (R & _2n) t2 ^= _1n << (_1n << /* @__PURE__ */ BigInt(j)) - _1n;
   }
-  _SHA3_IOTA.push(t);
+  _SHA3_IOTA.push(t2);
 }
 var IOTAS = split(_SHA3_IOTA, true);
 var SHA3_IOTA_H = IOTAS[0];
 var SHA3_IOTA_L = IOTAS[1];
-var rotlH = /* @__PURE__ */ __name((h, l, s) => s > 32 ? rotlBH(h, l, s) : rotlSH(h, l, s), "rotlH");
-var rotlL = /* @__PURE__ */ __name((h, l, s) => s > 32 ? rotlBL(h, l, s) : rotlSL(h, l, s), "rotlL");
+var rotlH = /* @__PURE__ */ __name((h2, l, s) => s > 32 ? rotlBH(h2, l, s) : rotlSH(h2, l, s), "rotlH");
+var rotlL = /* @__PURE__ */ __name((h2, l, s) => s > 32 ? rotlBL(h2, l, s) : rotlSL(h2, l, s), "rotlL");
 function keccakP(s, rounds = 24) {
   const B = new Uint32Array(5 * 2);
   for (let round = 24 - rounds; round < 24; round++) {
@@ -2961,11 +3288,11 @@ function keccakP(s, rounds = 24) {
     }
     let curH = s[2];
     let curL = s[3];
-    for (let t = 0; t < 24; t++) {
-      const shift = SHA3_ROTL[t];
+    for (let t2 = 0; t2 < 24; t2++) {
+      const shift = SHA3_ROTL[t2];
       const Th = rotlH(curH, curL, shift);
       const Tl = rotlL(curH, curL, shift);
-      const PI = SHA3_PI[t];
+      const PI = SHA3_PI[t2];
       curH = s[PI];
       curL = s[PI + 1];
       s[PI] = Th;
@@ -3845,7 +4172,8 @@ __name(mfaVerifyRoute, "mfaVerifyRoute");
 
 // src/efileProviders.ts
 var ROSS_TAX_PREP_PROFILE = {
-  efin: "743586",
+  efin: "****86",
+  // Redacted for public
   etin_prod: "98978",
   firm_name: "ROSS TAX PREP AND BOOKKEEPING LLC",
   owner_name: "Condre Ross",
@@ -3859,7 +4187,8 @@ var ROSS_TAX_PREP_PROFILE = {
   role: "ERO"
 };
 var TAX_CONSULTANTS_PROFILE = {
-  efin: "748335",
+  efin: "****35",
+  // Redacted for public
   etin_prod: "95409",
   etin_test: "95410",
   firm_name: "254 - TAX CONSULTANTS",
@@ -4053,17 +4382,17 @@ var compose = /* @__PURE__ */ __name((middleware, onError, onNotFound) => {
 var GET_MATCH_RESULT = /* @__PURE__ */ Symbol();
 
 // node_modules/hono/dist/utils/body.js
-var parseBody = /* @__PURE__ */ __name(async (request, options = /* @__PURE__ */ Object.create(null)) => {
+var parseBody = /* @__PURE__ */ __name(async (request2, options = /* @__PURE__ */ Object.create(null)) => {
   const { all = false, dot = false } = options;
-  const headers = request instanceof HonoRequest ? request.raw.headers : request.headers;
+  const headers = request2 instanceof HonoRequest ? request2.raw.headers : request2.headers;
   const contentType = headers.get("Content-Type");
   if (contentType?.startsWith("multipart/form-data") || contentType?.startsWith("application/x-www-form-urlencoded")) {
-    return parseFormData(request, { all, dot });
+    return parseFormData(request2, { all, dot });
   }
   return {};
 }, "parseBody");
-async function parseFormData(request, options) {
-  const formData = await request.formData();
+async function parseFormData(request2, options) {
+  const formData = await request2.formData();
   if (formData) {
     return convertFormDataToBodyData(formData, options);
   }
@@ -4190,8 +4519,8 @@ var tryDecode = /* @__PURE__ */ __name((str, decoder) => {
   }
 }, "tryDecode");
 var tryDecodeURI = /* @__PURE__ */ __name((str) => tryDecode(str, decodeURI), "tryDecodeURI");
-var getPath = /* @__PURE__ */ __name((request) => {
-  const url = request.url;
+var getPath = /* @__PURE__ */ __name((request2) => {
+  const url = request2.url;
   const start = url.indexOf("/", url.indexOf(":") + 4);
   let i = start;
   for (; i < url.length; i++) {
@@ -4206,8 +4535,8 @@ var getPath = /* @__PURE__ */ __name((request) => {
   }
   return url.slice(start, i);
 }, "getPath");
-var getPathNoStrict = /* @__PURE__ */ __name((request) => {
-  const result = getPath(request);
+var getPathNoStrict = /* @__PURE__ */ __name((request2) => {
+  const result = getPath(request2);
   return result.length > 1 && result.at(-1) === "/" ? result.slice(0, -1) : result;
 }, "getPathNoStrict");
 var mergePath = /* @__PURE__ */ __name((base, sub, ...rest) => {
@@ -4364,8 +4693,8 @@ var HonoRequest = class {
    */
   path;
   bodyCache = {};
-  constructor(request, path = "/", matchResult = [[]]) {
-    this.raw = request;
+  constructor(request2, path = "/", matchResult = [[]]) {
+    this.raw = request2;
     this.path = path;
     this.#matchResult = matchResult;
     this.#validatedData = {};
@@ -5112,8 +5441,8 @@ var Hono = class _Hono {
       };
     });
     this.on = (method, path, ...handlers) => {
-      for (const p of [path].flat()) {
-        this.#path = p;
+      for (const p2 of [path].flat()) {
+        this.#path = p2;
         for (const m of [method].flat()) {
           handlers.map((handler) => {
             this.#addRoute(m.toUpperCase(), this.#path, handler);
@@ -5171,15 +5500,15 @@ var Hono = class _Hono {
    */
   route(path, app) {
     const subApp = this.basePath(path);
-    app.routes.map((r) => {
+    app.routes.map((r2) => {
       let handler;
       if (app.errorHandler === errorHandler) {
-        handler = r.handler;
+        handler = r2.handler;
       } else {
-        handler = /* @__PURE__ */ __name(async (c, next) => (await compose([], app.errorHandler)(c, () => r.handler(c, next))).res, "handler");
-        handler[COMPOSED_HANDLER] = r.handler;
+        handler = /* @__PURE__ */ __name(async (c, next) => (await compose([], app.errorHandler)(c, () => r2.handler(c, next))).res, "handler");
+        handler[COMPOSED_HANDLER] = r2.handler;
       }
-      subApp.#addRoute(r.method, r.path, handler);
+      subApp.#addRoute(r2.method, r2.path, handler);
     });
     return this;
   }
@@ -5281,7 +5610,7 @@ var Hono = class _Hono {
       } else {
         optionHandler = options.optionHandler;
         if (options.replaceRequest === false) {
-          replaceRequest = /* @__PURE__ */ __name((request) => request, "replaceRequest");
+          replaceRequest = /* @__PURE__ */ __name((request2) => request2, "replaceRequest");
         } else {
           replaceRequest = options.replaceRequest;
         }
@@ -5301,10 +5630,10 @@ var Hono = class _Hono {
     replaceRequest ||= (() => {
       const mergedPath = mergePath(this._basePath, path);
       const pathPrefixLength = mergedPath === "/" ? 0 : mergedPath.length;
-      return (request) => {
-        const url = new URL(request.url);
+      return (request2) => {
+        const url = new URL(request2.url);
         url.pathname = url.pathname.slice(pathPrefixLength) || "/";
-        return new Request(url, request);
+        return new Request(url, request2);
       };
     })();
     const handler = /* @__PURE__ */ __name(async (c, next) => {
@@ -5320,9 +5649,9 @@ var Hono = class _Hono {
   #addRoute(method, path, handler) {
     method = method.toUpperCase();
     path = mergePath(this._basePath, path);
-    const r = { basePath: this._basePath, path, method, handler };
-    this.router.add(method, path, [handler, r]);
-    this.routes.push(r);
+    const r2 = { basePath: this._basePath, path, method, handler };
+    this.router.add(method, path, [handler, r2]);
+    this.routes.push(r2);
   }
   #handleError(err, c) {
     if (err instanceof Error) {
@@ -5330,13 +5659,13 @@ var Hono = class _Hono {
     }
     throw err;
   }
-  #dispatch(request, executionCtx, env, method) {
+  #dispatch(request2, executionCtx, env, method) {
     if (method === "HEAD") {
-      return (async () => new Response(null, await this.#dispatch(request, executionCtx, env, "GET")))();
+      return (async () => new Response(null, await this.#dispatch(request2, executionCtx, env, "GET")))();
     }
-    const path = this.getPath(request, { env });
+    const path = this.getPath(request2, { env });
     const matchResult = this.router.match(method, path);
-    const c = new Context(request, {
+    const c = new Context(request2, {
       path,
       matchResult,
       env,
@@ -5382,8 +5711,8 @@ var Hono = class _Hono {
    * @returns {Response | Promise<Response>} response of request
    *
    */
-  fetch = /* @__PURE__ */ __name((request, ...rest) => {
-    return this.#dispatch(request, rest[1], rest[0], request.method);
+  fetch = /* @__PURE__ */ __name((request2, ...rest) => {
+    return this.#dispatch(request2, rest[1], rest[0], request2.method);
   }, "fetch");
   /**
    * `.request()` is a useful method for testing.
@@ -5429,8 +5758,8 @@ var Hono = class _Hono {
    * @see https://developers.cloudflare.com/workers/reference/migrate-to-module-workers/
    */
   fire = /* @__PURE__ */ __name(() => {
-    addEventListener("fetch", (event) => {
-      event.respondWith(this.#dispatch(event.request, event, void 0, event.request.method));
+    addEventListener("fetch", (event2) => {
+      event2.respondWith(this.#dispatch(event2.request, event2, void 0, event2.request.method));
     });
   }, "fire");
 };
@@ -5659,7 +5988,7 @@ function buildMatcherFromPreprocessedRoutes(routes) {
   for (let i = 0, j = -1, len = routesWithStaticPathFlag.length; i < len; i++) {
     const [pathErrorCheckOnly, path, handlers] = routesWithStaticPathFlag[i];
     if (pathErrorCheckOnly) {
-      staticMap[path] = [handlers.map(([h]) => [h, /* @__PURE__ */ Object.create(null)]), emptyParam];
+      staticMap[path] = [handlers.map(([h2]) => [h2, /* @__PURE__ */ Object.create(null)]), emptyParam];
     } else {
       j++;
     }
@@ -5672,14 +6001,14 @@ function buildMatcherFromPreprocessedRoutes(routes) {
     if (pathErrorCheckOnly) {
       continue;
     }
-    handlerData[j] = handlers.map(([h, paramCount]) => {
+    handlerData[j] = handlers.map(([h2, paramCount]) => {
       const paramIndexMap = /* @__PURE__ */ Object.create(null);
       paramCount -= 1;
       for (; paramCount >= 0; paramCount--) {
         const [key, value] = paramAssoc[paramCount];
         paramIndexMap[key] = value;
       }
-      return [h, paramIndexMap];
+      return [h2, paramIndexMap];
     });
   }
   const [regexp, indexReplacementMap, paramReplacementMap] = trie.buildRegExp();
@@ -5735,8 +6064,8 @@ var RegExpRouter = class {
       ;
       [middleware, routes].forEach((handlerMap) => {
         handlerMap[method] = /* @__PURE__ */ Object.create(null);
-        Object.keys(handlerMap[METHOD_NAME_ALL]).forEach((p) => {
-          handlerMap[method][p] = [...handlerMap[METHOD_NAME_ALL][p]];
+        Object.keys(handlerMap[METHOD_NAME_ALL]).forEach((p2) => {
+          handlerMap[method][p2] = [...handlerMap[METHOD_NAME_ALL][p2]];
         });
       });
     }
@@ -5755,15 +6084,15 @@ var RegExpRouter = class {
       }
       Object.keys(middleware).forEach((m) => {
         if (method === METHOD_NAME_ALL || method === m) {
-          Object.keys(middleware[m]).forEach((p) => {
-            re.test(p) && middleware[m][p].push([handler, paramCount]);
+          Object.keys(middleware[m]).forEach((p2) => {
+            re.test(p2) && middleware[m][p2].push([handler, paramCount]);
           });
         }
       });
       Object.keys(routes).forEach((m) => {
         if (method === METHOD_NAME_ALL || method === m) {
           Object.keys(routes[m]).forEach(
-            (p) => re.test(p) && routes[m][p].push([handler, paramCount])
+            (p2) => re.test(p2) && routes[m][p2].push([handler, paramCount])
           );
         }
       });
@@ -5795,14 +6124,14 @@ var RegExpRouter = class {
   #buildMatcher(method) {
     const routes = [];
     let hasOwnRoute = method === METHOD_NAME_ALL;
-    [this.#middleware, this.#routes].forEach((r) => {
-      const ownRoute = r[method] ? Object.keys(r[method]).map((path) => [path, r[method][path]]) : [];
+    [this.#middleware, this.#routes].forEach((r2) => {
+      const ownRoute = r2[method] ? Object.keys(r2[method]).map((path) => [path, r2[method][path]]) : [];
       if (ownRoute.length !== 0) {
         hasOwnRoute ||= true;
         routes.push(...ownRoute);
       } else if (method !== METHOD_NAME_ALL) {
         routes.push(
-          ...Object.keys(r[METHOD_NAME_ALL]).map((path) => [path, r[METHOD_NAME_ALL][path]])
+          ...Object.keys(r2[METHOD_NAME_ALL]).map((path) => [path, r2[METHOD_NAME_ALL][path]])
         );
       }
     });
@@ -5899,10 +6228,10 @@ var Node2 = class _Node2 {
     const parts = splitRoutingPath(path);
     const possibleKeys = [];
     for (let i = 0, len = parts.length; i < len; i++) {
-      const p = parts[i];
+      const p2 = parts[i];
       const nextP = parts[i + 1];
-      const pattern = getPattern(p, nextP);
-      const key = Array.isArray(pattern) ? pattern[0] : p;
+      const pattern = getPattern(p2, nextP);
+      const key = Array.isArray(pattern) ? pattern[0] : p2;
       if (key in curNode.#children) {
         curNode = curNode.#children[key];
         if (pattern) {
@@ -6075,46 +6404,6 @@ var Hono2 = class extends Hono {
     });
   }
 };
-
-// src/utils/audit.ts
-async function logAudit(env, entry, req) {
-  try {
-    const id = v4_default();
-    const ip_address = entry.ip_address || req?.headers.get("CF-Connecting-IP") || req?.headers.get("X-Forwarded-For") || "unknown";
-    const user_agent = entry.user_agent || req?.headers.get("User-Agent") || "unknown";
-    await env.DB.prepare(
-      `INSERT INTO audit_log (id, action, entity, entity_id, user_id, user_role, user_email, details, ip_address, user_agent, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`
-    ).bind(
-      id,
-      entry.action,
-      entry.entity,
-      entry.entity_id || null,
-      entry.user_id || null,
-      entry.user_role || null,
-      entry.user_email || null,
-      entry.details || null,
-      ip_address,
-      user_agent
-    ).run();
-    console.log(`[AUDIT] ${entry.action} on ${entry.entity} by ${entry.user_email || "system"}`);
-  } catch (error) {
-    console.error("Failed to log audit entry:", error);
-  }
-}
-__name(logAudit, "logAudit");
-async function auditPayment(env, transactionId, amount, user, status, req) {
-  await logAudit(env, {
-    action: `payment_${status}`,
-    entity: "payment",
-    entity_id: transactionId,
-    user_id: user.id,
-    user_role: user.role,
-    user_email: user.email,
-    details: JSON.stringify({ amount, currency: "USD" })
-  }, req);
-}
-__name(auditPayment, "auditPayment");
 
 // src/payment.ts
 var paymentRouter = new Hono2();
@@ -7504,7 +7793,7 @@ var SchemaValidator = class {
       ruleChecks,
       summary: {
         totalRules: applicableRules.length,
-        passed: ruleChecks.filter((r) => r.passed).length,
+        passed: ruleChecks.filter((r2) => r2.passed).length,
         failed: errors.length,
         warnings: warnings.length
       }
@@ -7515,7 +7804,7 @@ var SchemaValidator = class {
    */
   quickValidate(xml, returnType) {
     const criticalRules = this.rules.filter(
-      (r) => r.severity === "reject" && r.forms.includes(returnType)
+      (r2) => r2.severity === "reject" && r2.forms.includes(returnType)
     );
     const errors = [];
     const context = {
@@ -7535,14 +7824,14 @@ var SchemaValidator = class {
    * Get list of rules for a specific form
    */
   getRulesForForm(returnType) {
-    return this.rules.filter((r) => r.forms.includes(returnType));
+    return this.rules.filter((r2) => r2.forms.includes(returnType));
   }
   /**
    * Get all supported return types
    */
   getSupportedForms() {
     const forms = /* @__PURE__ */ new Set();
-    this.rules.forEach((r) => r.forms.forEach((f) => forms.add(f)));
+    this.rules.forEach((r2) => r2.forms.forEach((f2) => forms.add(f2)));
     return Array.from(forms);
   }
   /**
@@ -7744,61 +8033,6 @@ async function fetchIrsMemos() {
   return xml;
 }
 __name(fetchIrsMemos, "fetchIrsMemos");
-
-// src/middleware/auth.ts
-async function verifyJWT(req, env) {
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return null;
-  }
-  const token = authHeader.substring(7);
-  try {
-    const isValid = await index_default.verify(token, env.JWT_SECRET || "your-secret-key-change-in-production");
-    if (!isValid) {
-      return null;
-    }
-    const { payload } = index_default.decode(token);
-    return payload;
-  } catch (error) {
-    console.error("JWT verification failed:", error);
-    return null;
-  }
-}
-__name(verifyJWT, "verifyJWT");
-async function requireAdmin(req, env) {
-  const user = await verifyJWT(req, env);
-  if (!user) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401,
-      headers: { "Content-Type": "application/json" }
-    });
-  }
-  if (user.role !== "admin") {
-    return new Response(JSON.stringify({ error: "Forbidden - Admin access required" }), {
-      status: 403,
-      headers: { "Content-Type": "application/json" }
-    });
-  }
-  return user;
-}
-__name(requireAdmin, "requireAdmin");
-async function requireStaff(req, env) {
-  const user = await verifyJWT(req, env);
-  if (!user) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401,
-      headers: { "Content-Type": "application/json" }
-    });
-  }
-  if (user.role !== "admin" && user.role !== "staff") {
-    return new Response(JSON.stringify({ error: "Forbidden - Staff access required" }), {
-      status: 403,
-      headers: { "Content-Type": "application/json" }
-    });
-  }
-  return user;
-}
-__name(requireStaff, "requireStaff");
 
 // src/utils/encryption.ts
 async function getKey2(env) {
@@ -8011,6 +8245,290 @@ async function handleCrmIntakeDelete(req, env, id) {
   }
 }
 __name(handleCrmIntakeDelete, "handleCrmIntakeDelete");
+
+// src/middleware/validation.ts
+function isValidEmail(email) {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
+__name(isValidEmail, "isValidEmail");
+function isStrongPassword(password) {
+  const errors = [];
+  if (password.length < 8) {
+    errors.push("Password must be at least 8 characters long");
+  }
+  if (!/[A-Z]/.test(password)) {
+    errors.push("Password must contain at least one uppercase letter");
+  }
+  if (!/[a-z]/.test(password)) {
+    errors.push("Password must contain at least one lowercase letter");
+  }
+  if (!/[0-9]/.test(password)) {
+    errors.push("Password must contain at least one number");
+  }
+  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+    errors.push("Password must contain at least one special character");
+  }
+  return {
+    valid: errors.length === 0,
+    errors
+  };
+}
+__name(isStrongPassword, "isStrongPassword");
+function sanitizeString(input) {
+  return input.replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#x27;").replace(/\//g, "&#x2F;");
+}
+__name(sanitizeString, "sanitizeString");
+function validateRequiredFields(body, requiredFields) {
+  const errors = [];
+  for (const field of requiredFields) {
+    if (!body[field] || body[field] === "") {
+      errors.push({
+        field,
+        message: `${field} is required`
+      });
+    }
+  }
+  return {
+    valid: errors.length === 0,
+    errors
+  };
+}
+__name(validateRequiredFields, "validateRequiredFields");
+
+// src/routes/lms.ts
+var lmsRouter = t();
+var courses = [
+  {
+    id: "c1",
+    title: "Tax Preparer Onboarding",
+    modules: [
+      { id: "m1", title: "Compliance & Ethics", duration: "30m", status: "Live" },
+      { id: "m2", title: "Client Intake & KYC", duration: "20m", status: "Live" },
+      { id: "m3", title: "E-File Procedures", duration: "25m", status: "Live" },
+      { id: "m4", title: "Data Security", duration: "15m", status: "Live" }
+    ]
+  }
+];
+var students = [
+  { id: "s1", name: "Jane Doe", email: "jane@example.com", courses: ["c1"] }
+];
+var enrollments = [
+  { id: "e1", studentId: "s1", courseId: "c1", status: "active" }
+];
+var lmsConfig = {
+  theme: {
+    primary: "#11233B",
+    accent: "#C9A24D",
+    background: "#F5F5F5",
+    font: "Inter, Arial, sans-serif",
+    logo: "/public/rtb-logo.png"
+  },
+  orgName: "Ross Tax Prep & Bookkeeping",
+  compliance: ["IRS", "SOC2", "ADA"],
+  year: 2026
+};
+lmsRouter.get("/courses", (req, env) => {
+  return new Response(JSON.stringify(courses), { headers: { "Content-Type": "application/json" } });
+});
+lmsRouter.get("/courses/:id", (req, env) => {
+  const course = courses.find((c) => c.id === req.params.id);
+  if (!course) return new Response("Not found", { status: 404 });
+  return new Response(JSON.stringify(course), { headers: { "Content-Type": "application/json" } });
+});
+lmsRouter.post("/courses", async (req, env) => {
+  try {
+    const body = await req.json();
+    const { valid, errors } = validateRequiredFields(body, ["title"]);
+    if (!valid) return new Response(JSON.stringify({ error: errors }), { status: 400 });
+    const id = "c" + (courses.length + 1);
+    const course = { id, title: body.title, modules: [] };
+    courses.push(course);
+    await logAudit(env, { action: "lms_course_create", entity: "courses", entity_id: id });
+    return new Response(JSON.stringify(course), { headers: { "Content-Type": "application/json" } });
+  } catch (error) {
+    console.error("LMS create course error:", error);
+    return new Response(JSON.stringify({ error: "Failed to create course" }), { status: 500 });
+  }
+});
+lmsRouter.put("/courses/:id", async (req, env) => {
+  try {
+    const body = await req.json();
+    const course = courses.find((c) => c.id === req.params.id);
+    if (!course) return new Response(JSON.stringify({ error: "Not found" }), { status: 404 });
+    course.title = body.title || course.title;
+    course.modules = body.modules || course.modules;
+    await logAudit(env, { action: "lms_course_update", entity: "courses", entity_id: course.id });
+    return new Response(JSON.stringify(course), { headers: { "Content-Type": "application/json" } });
+  } catch (error) {
+    console.error("LMS update course error:", error);
+    return new Response(JSON.stringify({ error: "Failed to update course" }), { status: 500 });
+  }
+});
+lmsRouter.delete("/courses/:id", async (req, env) => {
+  try {
+    const idx = courses.findIndex((c) => c.id === req.params.id);
+    if (idx === -1) return new Response(JSON.stringify({ error: "Not found" }), { status: 404 });
+    const [removed] = courses.splice(idx, 1);
+    await logAudit(env, { action: "lms_course_delete", entity: "courses", entity_id: removed.id });
+    return new Response(JSON.stringify({ success: true }));
+  } catch (error) {
+    console.error("LMS delete course error:", error);
+    return new Response(JSON.stringify({ error: "Failed to delete course" }), { status: 500 });
+  }
+});
+lmsRouter.get("/students", (req, env) => {
+  return new Response(JSON.stringify(students), { headers: { "Content-Type": "application/json" } });
+});
+lmsRouter.get("/students/:id", (req, env) => {
+  const student = students.find((s) => s.id === req.params.id);
+  if (!student) return new Response("Not found", { status: 404 });
+  return new Response(JSON.stringify(student), { headers: { "Content-Type": "application/json" } });
+});
+lmsRouter.post("/students", async (req, env) => {
+  try {
+    const body = await req.json();
+    const { valid, errors } = validateRequiredFields(body, ["name", "email"]);
+    if (!valid || !isValidEmail(body.email)) return new Response(JSON.stringify({ error: errors }), { status: 400 });
+    const studentId = "s" + (students.length + 1);
+    const student = { id: studentId, name: body.name, email: body.email, courses: [] };
+    students.push(student);
+    await logAudit(env, { action: "lms_student_create", entity: "students", entity_id: studentId });
+    return new Response(JSON.stringify(student), { headers: { "Content-Type": "application/json" } });
+  } catch (error) {
+    console.error("LMS create student error:", error);
+    return new Response(JSON.stringify({ error: "Failed to create student" }), { status: 500 });
+  }
+});
+lmsRouter.patch("/students/:id", async (req, env) => {
+  try {
+    const body = await req.json();
+    const student = students.find((s) => s.id === req.params.id);
+    if (!student) return new Response(JSON.stringify({ error: "Not found" }), { status: 404 });
+    student.name = body.name || student.name;
+    student.email = body.email || student.email;
+    student.courses = body.courses || student.courses;
+    await logAudit(env, { action: "lms_student_update", entity: "students", entity_id: student.id });
+    return new Response(JSON.stringify(student), { headers: { "Content-Type": "application/json" } });
+  } catch (error) {
+    console.error("LMS update student error:", error);
+    return new Response(JSON.stringify({ error: "Failed to update student" }), { status: 500 });
+  }
+});
+lmsRouter.delete("/students/:id", async (req, env) => {
+  try {
+    const idx = students.findIndex((s) => s.id === req.params.id);
+    if (idx === -1) return new Response(JSON.stringify({ error: "Not found" }), { status: 404 });
+    const [removed] = students.splice(idx, 1);
+    await logAudit(env, { action: "lms_student_delete", entity: "students", entity_id: removed.id });
+    return new Response(JSON.stringify({ success: true }));
+  } catch (error) {
+    console.error("LMS delete student error:", error);
+    return new Response(JSON.stringify({ error: "Failed to delete student" }), { status: 500 });
+  }
+});
+lmsRouter.post("/enroll", async (req, env) => {
+  try {
+    const body = await req.json();
+    if (body.name && body.email) {
+      const { valid, errors } = validateRequiredFields(body, ["name", "email"]);
+      if (!valid || !isValidEmail(body.email)) return new Response(JSON.stringify({ error: errors }), { status: 400 });
+      const id = "s" + (students.length + 1);
+      const student = { id, name: body.name, email: body.email, courses: [] };
+      students.push(student);
+      await logAudit(env, { action: "lms_student_create", entity: "students", entity_id: id });
+      return new Response(JSON.stringify(student), { headers: { "Content-Type": "application/json" } });
+    }
+    if (body.studentId && body.courseId) {
+      const enrollmentId = "e" + (enrollments.length + 1);
+      enrollments.push({ id: enrollmentId, studentId: body.studentId, courseId: body.courseId, status: "active" });
+      await logAudit(env, { action: "lms_enroll", entity: "enrollments", entity_id: enrollmentId });
+      return new Response(JSON.stringify({ success: true, id: enrollmentId }), { headers: { "Content-Type": "application/json" } });
+    }
+    return new Response(JSON.stringify({ error: "Missing required fields" }), { status: 400 });
+  } catch (error) {
+    console.error("LMS enroll error:", error);
+    return new Response(JSON.stringify({ error: "Failed to enroll student" }), { status: 500 });
+  }
+});
+lmsRouter.get("/enrollments", (req, env) => {
+  return new Response(JSON.stringify(enrollments), { headers: { "Content-Type": "application/json" } });
+});
+lmsRouter.get("/enrollments/:id", (req, env) => {
+  const enr = enrollments.find((e) => e.id === req.params.id);
+  if (!enr) return new Response("Not found", { status: 404 });
+  return new Response(JSON.stringify(enr), { headers: { "Content-Type": "application/json" } });
+});
+lmsRouter.get("/config", (req, env) => {
+  return new Response(JSON.stringify(lmsConfig), { headers: { "Content-Type": "application/json" } });
+});
+lmsRouter.put("/config", requireStaff, async (req, env) => {
+  const body = await req.json();
+  lmsConfig = { ...lmsConfig, ...typeof body === "object" && body !== null ? body : {} };
+  await logAudit(env, { action: "lms_config_update", entity: "lms_config", entity_id: "lms" });
+  return new Response(JSON.stringify(lmsConfig), { headers: { "Content-Type": "application/json" } });
+});
+var lms_default = lmsRouter;
+
+// src/routes/portal.ts
+var portalRouter = t();
+portalRouter.post("/register", async (req, env) => {
+  try {
+    const body = await req.json();
+    const name = sanitizeString(body.name || "");
+    const email = sanitizeString(body.email || "");
+    const password = body.password || "";
+    if (!name || !isValidEmail(email) || !isStrongPassword(password).valid) {
+      return new Response(JSON.stringify({ error: "Invalid input" }), { status: 400 });
+    }
+    const exists = await env.DB.prepare("SELECT id FROM clients WHERE email = ?").bind(email).first();
+    if (exists) return new Response(JSON.stringify({ error: "Email already registered" }), { status: 409 });
+    const hash2 = await bcryptjs_default.hash(password, 10);
+    const encName = await encryptPII(name, env);
+    const encEmail = await encryptPII(email, env);
+    const result = await env.DB.prepare("INSERT INTO clients (full_name, email, password_hash, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)").bind(encName, encEmail, hash2).run();
+    return new Response(JSON.stringify({ success: true, id: result.lastRowId }), { headers: { "Content-Type": "application/json" } });
+  } catch (err) {
+    return new Response(JSON.stringify({ error: "Registration failed" }), { status: 500 });
+  }
+});
+var portal_default = portalRouter;
+
+// src/routes/portalAuth.ts
+var portalAuthRouter = t();
+portalAuthRouter.post("/login", async (req, env) => {
+  try {
+    const body = await req.json();
+    const email = sanitizeString(body.email || "");
+    const password = body.password || "";
+    if (!isValidEmail(email) || !password) {
+      return new Response(JSON.stringify({ error: "Invalid credentials" }), { status: 400 });
+    }
+    const clientRows = await env.DB.prepare("SELECT id, full_name, email, password_hash FROM clients").all();
+    let user = null;
+    for (const row of clientRows.results) {
+      const decEmail = await decryptPII(row.email, env);
+      if (decEmail === email) {
+        user = row;
+        break;
+      }
+    }
+    if (!user) return new Response(JSON.stringify({ error: "Invalid credentials" }), { status: 401 });
+    const valid = await bcryptjs_default.compare(password, user.password_hash);
+    if (!valid) return new Response(JSON.stringify({ error: "Invalid credentials" }), { status: 401 });
+    const payload = {
+      id: user.id,
+      email,
+      role: "client",
+      name: user.full_name ? await decryptPII(user.full_name, env) : void 0
+    };
+    const token = await index_default.sign(payload, env.JWT_SECRET || "change-this-secret-in-production", { expiresIn: "7d" });
+    return new Response(JSON.stringify({ success: true, token }), { headers: { "Content-Type": "application/json" } });
+  } catch (err) {
+    return new Response(JSON.stringify({ error: "Login failed" }), { status: 500 });
+  }
+});
+var portalAuth_default = portalAuthRouter;
 
 // src/routes/certificates.ts
 var CERTIFICATE_TEMPLATES = {
@@ -8915,11 +9433,11 @@ async function handleGoogleReviews(req, env) {
     ];
     if (rating) {
       const ratingNum = parseInt(rating);
-      reviews = reviews.filter((r) => r.rating === ratingNum);
+      reviews = reviews.filter((r2) => r2.rating === ratingNum);
     }
     return new Response(JSON.stringify({
       total_reviews: reviews.length,
-      average_rating: (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1),
+      average_rating: (reviews.reduce((sum, r2) => sum + r2.rating, 0) / reviews.length).toFixed(1),
       reviews: reviews.slice(0, limit)
     }), {
       headers: { "Content-Type": "application/json" }
@@ -9565,10 +10083,10 @@ async function handleAuditLogProcessing(env, ctx) {
 __name(handleAuditLogProcessing, "handleAuditLogProcessing");
 
 // src/handlers/irs-callback.ts
-async function handleIrsCallback(request, env) {
+async function handleIrsCallback(request2, env) {
   try {
-    const body = await request.json();
-    const signature = request.headers.get("X-IRS-Signature");
+    const body = await request2.json();
+    const signature = request2.headers.get("X-IRS-Signature");
     const { submissionId, clientId, status, ackTimestamp, errors } = body;
     if (!submissionId) {
       return new Response(JSON.stringify({ error: "Missing submissionId" }), {
@@ -9637,10 +10155,10 @@ async function handleIrsCallback(request, env) {
 __name(handleIrsCallback, "handleIrsCallback");
 
 // src/handlers/payment-webhook.ts
-async function handlePaymentWebhook(request, env) {
+async function handlePaymentWebhook(request2, env) {
   try {
-    const body = await request.json();
-    const signature = request.headers.get("X-Payment-Signature");
+    const body = await request2.json();
+    const signature = request2.headers.get("X-Payment-Signature");
     const { transactionId, clientId, amount, status, paymentMethod } = body;
     if (!transactionId) {
       return new Response(JSON.stringify({ error: "Missing transactionId" }), {
@@ -9697,9 +10215,9 @@ async function handlePaymentWebhook(request, env) {
 __name(handlePaymentWebhook, "handlePaymentWebhook");
 
 // src/handlers/credential-upload.ts
-async function handleCredentialUpload(request, env) {
+async function handleCredentialUpload(request2, env) {
   try {
-    const body = await request.json();
+    const body = await request2.json();
     const { clientId, credentialType, encryptedData, returnId } = body;
     if (!clientId || !credentialType || !encryptedData) {
       return new Response(JSON.stringify({
@@ -9771,9 +10289,9 @@ async function verifyIrsSignature(payload, signature) {
   }
 }
 __name(verifyIrsSignature, "verifyIrsSignature");
-async function handleIrsRealtimeSchema(request, env) {
+async function handleIrsRealtimeSchema(request2, env) {
   try {
-    const body = await request.json();
+    const body = await request2.json();
     if (body.signature) {
       const payloadStr = JSON.stringify({ type: body.type, timestamp: body.timestamp, data: body.data });
       const isValid = await verifyIrsSignature(payloadStr, body.signature);
@@ -9829,9 +10347,9 @@ async function handleIrsRealtimeSchema(request, env) {
   }
 }
 __name(handleIrsRealtimeSchema, "handleIrsRealtimeSchema");
-async function handleIrsRealtimeMemo(request, env) {
+async function handleIrsRealtimeMemo(request2, env) {
   try {
-    const body = await request.json();
+    const body = await request2.json();
     if (body.signature) {
       const payloadStr = JSON.stringify({ type: body.type, timestamp: body.timestamp, data: body.data });
       const isValid = await verifyIrsSignature(payloadStr, body.signature);
@@ -10070,10 +10588,10 @@ async function handleUpdateRefundStatus(req, env) {
   const fields = ["irs_refund_status", "refund_method", "refund_amount", "refund_disbursed_at", "refund_trace_id", "refund_notes"];
   const updates = [];
   const params = [];
-  for (const f of fields) {
-    if (body[f] !== void 0) {
-      updates.push(`${f} = ?`);
-      params.push(body[f]);
+  for (const f2 of fields) {
+    if (body[f2] !== void 0) {
+      updates.push(`${f2} = ?`);
+      params.push(body[f2]);
     }
   }
   if (!updates.length) return new Response(JSON.stringify({ error: "No fields to update" }), { status: 400 });
@@ -10082,20 +10600,20 @@ async function handleUpdateRefundStatus(req, env) {
   return new Response(JSON.stringify({ success: true }), { headers: { "Content-Type": "application/json" } });
 }
 __name(handleUpdateRefundStatus, "handleUpdateRefundStatus");
-async function updateIrsMemo(request, env) {
-  const id = request.url.split("/")[4];
-  const body = await request.json();
+async function updateIrsMemo(request2, env) {
+  const id = request2.url.split("/")[4];
+  const body = await request2.json();
   const fields = ["title", "summary", "full_text", "url", "tags", "status", "published_at"];
   const updates = [];
   const params = [];
-  for (const f of fields) {
-    if (body[f] !== void 0) {
-      if (f === "tags") {
+  for (const f2 of fields) {
+    if (body[f2] !== void 0) {
+      if (f2 === "tags") {
         updates.push("tags_json = ?");
         params.push(JSON.stringify(body.tags));
       } else {
-        updates.push(`${f} = ?`);
-        params.push(body[f]);
+        updates.push(`${f2} = ?`);
+        params.push(body[f2]);
       }
     }
   }
@@ -10111,8 +10629,8 @@ async function updateIrsMemo(request, env) {
   return new Response(JSON.stringify({ success: true }), { headers: { "Content-Type": "application/json" } });
 }
 __name(updateIrsMemo, "updateIrsMemo");
-async function deleteIrsMemo(request, env) {
-  const id = request.url.split("/")[4];
+async function deleteIrsMemo(request2, env) {
+  const id = request2.url.split("/")[4];
   await env.DB.prepare(`UPDATE irs_memos SET status = 'deleted' WHERE id = ?`).bind(id).run();
   await env.DB.prepare(`INSERT INTO audit_log (action, entity, entity_id, details, created_at) VALUES (?, ?, ?, ?, datetime('now'))`).bind(
     "delete",
@@ -10123,8 +10641,8 @@ async function deleteIrsMemo(request, env) {
   return new Response(JSON.stringify({ success: true }), { headers: { "Content-Type": "application/json" } });
 }
 __name(deleteIrsMemo, "deleteIrsMemo");
-async function unlinkIrsMemoLink(request, env) {
-  const parts = request.url.split("/");
+async function unlinkIrsMemoLink(request2, env) {
+  const parts = request2.url.split("/");
   const linkId = parts[6];
   await env.DB.prepare(`DELETE FROM irs_memo_links WHERE id = ?`).bind(linkId).run();
   await env.DB.prepare(`INSERT INTO audit_log (action, entity, entity_id, details, created_at) VALUES (?, ?, ?, ?, datetime('now'))`).bind(
@@ -10136,8 +10654,8 @@ async function unlinkIrsMemoLink(request, env) {
   return new Response(JSON.stringify({ success: true }), { headers: { "Content-Type": "application/json" } });
 }
 __name(unlinkIrsMemoLink, "unlinkIrsMemoLink");
-async function searchIrsMemos(request, env) {
-  const url = new URL(request.url);
+async function searchIrsMemos(request2, env) {
+  const url = new URL(request2.url);
   const text = url.searchParams.get("text");
   const from = url.searchParams.get("from");
   const to = url.searchParams.get("to");
@@ -10165,8 +10683,8 @@ async function searchIrsMemos(request, env) {
   return new Response(JSON.stringify(rows.results), { headers: { "Content-Type": "application/json" } });
 }
 __name(searchIrsMemos, "searchIrsMemos");
-async function listIrsMemos(request, env) {
-  const url = new URL(request.url);
+async function listIrsMemos(request2, env) {
+  const url = new URL(request2.url);
   const source = url.searchParams.get("source");
   const tag = url.searchParams.get("tag");
   const status = url.searchParams.get("status") ?? "active";
@@ -10188,8 +10706,8 @@ async function listIrsMemos(request, env) {
   return new Response(JSON.stringify(rows.results), { headers: { "Content-Type": "application/json" } });
 }
 __name(listIrsMemos, "listIrsMemos");
-async function getIrsMemo(request, env) {
-  const id = request.url.split("/").pop();
+async function getIrsMemo(request2, env) {
+  const id = request2.url.split("/").pop();
   const memo = await env.DB.prepare(
     "SELECT * FROM irs_memos WHERE id = ?"
   ).bind(id).first();
@@ -10200,9 +10718,9 @@ async function getIrsMemo(request, env) {
   return new Response(JSON.stringify({ memo, links: links.results }), { headers: { "Content-Type": "application/json" } });
 }
 __name(getIrsMemo, "getIrsMemo");
-async function linkIrsMemo(request, env) {
-  const memoId = request.url.split("/")[3];
-  const body = await request.json();
+async function linkIrsMemo(request2, env) {
+  const memoId = request2.url.split("/")[3];
+  const body = await request2.json();
   const id = v4_default();
   await env.DB.prepare(
     `INSERT INTO irs_memo_links 
@@ -10220,8 +10738,8 @@ async function linkIrsMemo(request, env) {
   return new Response(JSON.stringify({ success: true, id }), { headers: { "Content-Type": "application/json" } });
 }
 __name(linkIrsMemo, "linkIrsMemo");
-async function listIrsSchemaFields(request, env) {
-  const url = new URL(request.url);
+async function listIrsSchemaFields(request2, env) {
+  const url = new URL(request2.url);
   const type = url.searchParams.get("type");
   const status = url.searchParams.get("status") ?? "active";
   let query = "SELECT * FROM irs_schema_fields WHERE status = ?";
@@ -10235,9 +10753,9 @@ async function listIrsSchemaFields(request, env) {
   return new Response(JSON.stringify(rows.results), { headers: { "Content-Type": "application/json" } });
 }
 __name(listIrsSchemaFields, "listIrsSchemaFields");
-async function handleCreateEnvelope(request, env, user) {
+async function handleCreateEnvelope(request2, env, user) {
   requireRole(user, ["admin", "staff"]);
-  const { client_id, name, email, documentBase64 } = await request.json();
+  const { client_id, name, email, documentBase64 } = await request2.json();
   const accessToken = await getDocuSignAccessToken(env);
   const envelopeBody = {
     emailSubject: "Ross Tax Prep \u2013 Engagement Letter",
@@ -10296,9 +10814,9 @@ async function handleCreateEnvelope(request, env, user) {
   });
 }
 __name(handleCreateEnvelope, "handleCreateEnvelope");
-async function handleEmbeddedSigningUrl(request, env, user) {
+async function handleEmbeddedSigningUrl(request2, env, user) {
   requireRole(user, ["admin", "staff", "client"]);
-  const { envelopeId, client_id, name, email } = await request.json();
+  const { envelopeId, client_id, name, email } = await request2.json();
   const accessToken = await getDocuSignAccessToken(env);
   const body = {
     returnUrl: env.DOCUSIGN_REDIRECT_URL,
@@ -10345,8 +10863,8 @@ async function handleDocuSignWebhook(req, env) {
   return new Response("OK", { status: 200 });
 }
 __name(handleDocuSignWebhook, "handleDocuSignWebhook");
-async function handleSignatures(request, env, user) {
-  const url = new URL(request.url);
+async function handleSignatures(request2, env, user) {
+  const url = new URL(request2.url);
   const scope = url.searchParams.get("scope");
   if (scope === "client") {
     requireRole(user, ["client"]);
@@ -10408,13 +10926,13 @@ async function handleLoginClient(req, env) {
   return new Response(JSON.stringify({ ok: true, user }), { headers: { "Content-Type": "application/json" } });
 }
 __name(handleLoginClient, "handleLoginClient");
-async function listTrainingCourses(request, env) {
+async function listTrainingCourses(request2, env) {
   const rows = await env.DB.prepare("SELECT * FROM training_courses ORDER BY created_at DESC").all();
   return new Response(JSON.stringify(rows.results), { headers: { "Content-Type": "application/json" } });
 }
 __name(listTrainingCourses, "listTrainingCourses");
-async function enrollTrainingCourse(request, env) {
-  const body = await request.json();
+async function enrollTrainingCourse(request2, env) {
+  const body = await request2.json();
   const id = v4_default();
   await env.DB.prepare(
     `INSERT INTO training_enrollments (id, course_id, student_email, student_name, notes)
@@ -10430,6 +10948,55 @@ var index_default2 = {
       seeded = true;
     }
     const url = new URL(req.url);
+    if (url.pathname.startsWith("/api/consult")) {
+      const reqPath = url.pathname.replace(/^\/api\/consult/, "");
+      const consultReq = new Request(reqPath || "/", req);
+      Object.defineProperty(consultReq, "params", { value: {} });
+      const resp = await consult_default.handle(consultReq, env);
+      return cors(resp);
+    }
+    if (url.pathname.startsWith("/api/diz")) {
+      const reqPath = url.pathname.replace(/^\/api\/diz/, "");
+      const dizReq = new Request(reqPath || "/", req);
+      Object.defineProperty(dizReq, "params", { value: {} });
+      const resp = await diz_default.handle(dizReq, env);
+      return cors(resp);
+    }
+    if (url.pathname.startsWith("/api/ero")) {
+      const reqPath = url.pathname.replace(/^\/api\/ero/, "");
+      const eroReq = new Request(reqPath || "/", req);
+      Object.defineProperty(eroReq, "params", { value: {} });
+      const resp = await ero_default.handle(eroReq, env);
+      return cors(resp);
+    }
+    if (url.pathname.startsWith("/api/portal/login")) {
+      const reqPath = url.pathname.replace(/^\/api\/portal/, "");
+      const portalAuthReq = new Request(reqPath || "/", req);
+      Object.defineProperty(portalAuthReq, "params", { value: {} });
+      const resp = await portalAuth_default.handle(portalAuthReq, env);
+      return cors(resp);
+    }
+    if (url.pathname.startsWith("/api/consult")) {
+      const reqPath = url.pathname.replace(/^\/api\/consult/, "");
+      const consultReq = new Request(reqPath || "/", req);
+      Object.defineProperty(consultReq, "params", { value: {} });
+      const resp = await consult_default.handle(consultReq, env);
+      return cors(resp);
+    }
+    if (url.pathname.startsWith("/api/diz")) {
+      const reqPath = url.pathname.replace(/^\/api\/diz/, "");
+      const dizReq = new Request(reqPath || "/", req);
+      Object.defineProperty(dizReq, "params", { value: {} });
+      const resp = await diz_default.handle(dizReq, env);
+      return cors(resp);
+    }
+    if (url.pathname.startsWith("/api/ero")) {
+      const reqPath = url.pathname.replace(/^\/api\/ero/, "");
+      const eroReq = new Request(reqPath || "/", req);
+      Object.defineProperty(eroReq, "params", { value: {} });
+      const resp = await ero_default.handle(eroReq, env);
+      return cors(resp);
+    }
     if (ctx && ctx.event && ctx.event.type === "scheduled") {
       const tipImageUrl = env.WEEKLY_TIP_IMAGE_URL;
       const tipCaption = env.WEEKLY_TIP_CAPTION;
@@ -10889,10 +11456,27 @@ var index_default2 = {
     if (url.pathname === "/api/social/google/stats" && req.method === "GET") {
       return cors(await handleGoogleStats(req, env));
     }
+    if (url.pathname.startsWith("/api/portal")) {
+      const reqPath = url.pathname.replace(/^\/api\/portal/, "");
+      const portalReq = new Request(reqPath || "/", req);
+      Object.defineProperty(portalReq, "params", { value: {} });
+      const resp = await portal_default.handle(portalReq, env);
+      return cors(resp);
+    }
+    if (url.pathname.startsWith("/api/lms")) {
+      const reqPath = url.pathname.replace(/^\/api\/lms/, "");
+      const lmsReq = new Request(reqPath || "/", req);
+      Object.defineProperty(lmsReq, "params", { value: {} });
+      const resp = await lms_default.handle(lmsReq, env);
+      return cors(resp);
+    }
+    if (url.pathname === "/api/lms/payment" && request.method === "POST") {
+      return await lmsPaymentRouter.handle(request, event.target.env);
+    }
     return new Response("Not Found", { status: 404 });
   },
   // Scheduled handler for IRS sync and data retention
-  async scheduled(event, env, ctx) {
+  async scheduled(event2, env, ctx) {
     console.log("Running scheduled tasks...");
     await handleScheduledIRSSync(env, ctx);
     await handleAuditLogProcessing(env, ctx);

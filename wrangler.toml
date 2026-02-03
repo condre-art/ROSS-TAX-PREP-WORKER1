@@ -4,6 +4,11 @@ main = "src/index.ts"
 compatibility_date = "2024-12-01"
 workers_dev = true
 
+[env.production]
+name = "ross-tax-prep-worker-prod"
+route = "api.rosstaxprepandbookkeeping.com/*"
+zone_id = "YOUR_ZONE_ID"
+
 [vars]
 ENV = "development"
 DOCUSIGN_PRIVATE_KEY = "HCh1UddB11F3LKkfrixQdgdS1kgLF1IRTcdzgF7Ij/Q="
