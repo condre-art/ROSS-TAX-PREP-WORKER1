@@ -1155,6 +1155,28 @@ export default {
       ];
       return cors(new Response(JSON.stringify(modules), { headers: { "Content-Type": "application/json" } }));
     }
+    if (url.pathname === "/api/lms/courses" && req.method === "GET") {
+      const user = await verifyAuth(req, env);
+      if (!user) return cors(unauthorized());
+      if (!["admin", "staff"].includes(user.role)) return cors(forbidden());
+      const courses = [
+        { id: "tax-101", title: "Tax Prep Foundations", level: "Beginner", duration: "45m" },
+        { id: "tax-201", title: "Intermediate Filing Scenarios", level: "Intermediate", duration: "55m" },
+        { id: "cx-ops", title: "Client Experience Excellence", level: "All", duration: "35m" }
+      ];
+      return cors(new Response(JSON.stringify(courses), { headers: { "Content-Type": "application/json" } }));
+    }
+    if (url.pathname === "/api/lms/students" && req.method === "GET") {
+      const user = await verifyAuth(req, env);
+      if (!user) return cors(unauthorized());
+      if (!["admin", "staff"].includes(user.role)) return cors(forbidden());
+      const students = [
+        { id: "s-100", name: "Alice Johnson", status: "active", progress: 72 },
+        { id: "s-101", name: "Brian Lee", status: "active", progress: 48 },
+        { id: "s-102", name: "Carmen Diaz", status: "inactive", progress: 0 }
+      ];
+      return cors(new Response(JSON.stringify(students), { headers: { "Content-Type": "application/json" } }));
+    }
     if (url.pathname === "/api/lms/progress" && req.method === "POST") {
       const user = await verifyAuth(req, env);
       if (!user) return cors(unauthorized());
