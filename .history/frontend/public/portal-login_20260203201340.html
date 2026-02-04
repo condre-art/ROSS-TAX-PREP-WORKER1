@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Secure Client Portal | Ross Tax & Bookkeeping</title>
+  <meta name="description" content="Access your secure client portal with encrypted document uploads, MFA protection, and real-time tax filing status."/>
+  <link rel="icon" type="image/png" href="/rtb-logo.png"/>
+  <style>
+    :root{
+      --navy:#071223; --gold:#f6c445; --ink:#eaf0ff; --muted:#b8c7ea;
+      --line:rgba(255,255,255,.12); --card:rgba(255,255,255,.06); --radius:18px; --max:1120px;
+      --success:#10b981; --warning:#f59e0b; --error:#ef4444;
+    }
+    *{box-sizing:border-box; margin:0; padding:0;}
+    body{
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color:var(--ink); line-height:1.6;
+      background:
+        radial-gradient(900px 600px at 20% 10%, rgba(246,196,69,.12), transparent 60%),
+        radial-gradient(1000px 700px at 85% 15%, rgba(59,130,246,.18), transparent 60%),
+        linear-gradient(180deg, #040a14, var(--navy));
+      min-height:100vh; display:flex; flex-direction:column;
+    }
+    .container{max-width:var(--max); margin:0 auto; padding:0 20px; width:100%;}
+    
+    /* Header */
+    header{border-bottom:1px solid var(--line); background:rgba(7,18,35,.7); backdrop-filter:blur(12px); position:sticky; top:0; z-index:100;}
+    nav{display:flex; justify-content:space-between; align-items:center; padding:14px 0;}
+    .brand{display:flex; gap:10px; align-items:center; text-decoration:none; color:var(--ink);}
+    .logo{width:42px; height:42px; border-radius:14px;
+      background:linear-gradient(135deg, var(--gold), rgba(59,130,246,.8));
+      display:flex; align-items:center; justify-content:center; font-weight:900; color:#041026; font-size:18px;}
+    .brand-text{font-weight:700; font-size:15px;}
+    
+    /* Main Content */
+    main{flex:1; display:flex; align-items:center; justify-content:center; padding:40px 0;}
+    
+    /* Security Bridge Card */
+    .bridge-card{
+      background:rgba(255,255,255,.08); border:1px solid var(--line); border-radius:var(--radius);
+      padding:40px; max-width:580px; width:100%; backdrop-filter:blur(20px);
+    }
+    
+    .security-badge{
+      width:72px; height:72px; margin:0 auto 20px; border-radius:50%;
+      background:linear-gradient(135deg, var(--success), #059669);
+      display:flex; align-items:center; justify-content:center; font-size:32px;
+      box-shadow:0 8px 32px rgba(16,185,129,.3);
+    }
+    
+    h1{font-size:28px; margin-bottom:12px; text-align:center;}
+    .subtitle{color:var(--muted); font-size:14px; text-align:center; margin-bottom:32px;}
+    
+    /* Security Features */
+    .security-features{
+      background:rgba(16,185,129,.08); border:1px solid rgba(16,185,129,.2); border-radius:12px;
+      padding:24px; margin-bottom:32px;
+    }
+    .feature{display:flex; gap:12px; align-items:flex-start; margin-bottom:16px;}
+    .feature:last-child{margin-bottom:0;}
+    .feature-icon{
+      width:24px; height:24px; border-radius:6px; background:var(--success);
+      display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:14px;
+    }
+    .feature-text{flex:1;}
+    .feature-title{font-weight:700; font-size:14px; margin-bottom:2px; color:var(--ink);}
+    .feature-desc{font-size:13px; color:var(--muted); line-height:1.5;}
+    
+    /* Action Buttons */
+    .actions{display:flex; flex-direction:column; gap:12px; margin-bottom:24px;}
+    .btn{
+      display:inline-flex; align-items:center; justify-content:center; gap:8px;
+      padding:14px 24px; border-radius:12px; text-decoration:none; font-weight:700; font-size:14px;
+      border:0; cursor:pointer; transition:all .2s ease; text-align:center;
+    }
+    .btn-primary{
+      background:linear-gradient(180deg, var(--gold), #f2b60f); color:#08162c;
+      box-shadow:0 4px 16px rgba(246,196,69,.3);
+    }
+    .btn-primary:hover{transform:translateY(-2px); box-shadow:0 6px 24px rgba(246,196,69,.4);}
+    
+    .btn-secondary{
+      background:rgba(255,255,255,.08); border:1px solid var(--line); color:var(--ink);
+    }
+    .btn-secondary:hover{background:rgba(255,255,255,.12);}
+    
+    /* Trust Pills */
+    .trust-pills{display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin-top:24px;}
+    .pill{
+      display:inline-flex; align-items:center; gap:6px;
+      padding:6px 12px; border-radius:20px; font-size:12px; font-weight:600;
+      background:rgba(59,130,246,.12); border:1px solid rgba(59,130,246,.3); color:var(--ink);
+    }
+    
+    /* Help Text */
+    .help-text{
+      background:rgba(59,130,246,.08); border:1px solid rgba(59,130,246,.2); border-radius:10px;
+      padding:16px; text-align:center; font-size:13px; color:var(--muted);
+    }
+    .help-text strong{color:var(--ink); display:block; margin-bottom:4px;}
+    .help-link{color:#60a5fa; text-decoration:none;}
+    .help-link:hover{text-decoration:underline;}
+    
+    /* Footer */
+    footer{border-top:1px solid var(--line); padding:20px 0; margin-top:40px;}
+    .footer-content{display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; font-size:13px;}
+    .footer-links{display:flex; gap:16px; flex-wrap:wrap;}
+    .footer-links a{color:var(--muted); text-decoration:none;}
+    .footer-links a:hover{color:var(--ink);}
+    
+    @media (max-width:640px){
+      .bridge-card{padding:28px 20px;}
+      h1{font-size:24px;}
+      .actions{gap:10px;}
+      .footer-content{flex-direction:column; text-align:center;}
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="container">
+      <nav>
+        <a href="/" class="brand">
+          <div class="logo">RT</div>
+          <div class="brand-text">Ross Tax & Bookkeeping</div>
+        </a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <div class="container">
+      <div class="bridge-card">
+        
+        <div class="security-badge">🔒</div>
+        
+        <h1>Welcome to Your Secure Portal</h1>
+        <p class="subtitle">Your documents and data are protected with bank-level encryption</p>
+        
+        <div class="security-features">
+          <div class="feature">
+            <div class="feature-icon">🔐</div>
+            <div class="feature-text">
+              <div class="feature-title">Multi-Factor Authentication</div>
+              <div class="feature-desc">Additional security layer beyond your password</div>
+            </div>
+          </div>
+          
+          <div class="feature">
+            <div class="feature-icon">🛡️</div>
+            <div class="feature-text">
+              <div class="feature-title">End-to-End Encryption</div>
+              <div class="feature-desc">Documents encrypted in transit and at rest</div>
+            </div>
+          </div>
+          
+          <div class="feature">
+            <div class="feature-icon">📋</div>
+            <div class="feature-text">
+              <div class="feature-title">Audit Logging</div>
+              <div class="feature-desc">Track all access and document activity</div>
+            </div>
+          </div>
+          
+          <div class="feature">
+            <div class="feature-icon">✅</div>
+            <div class="feature-text">
+              <div class="feature-title">IRS-Compliant E-Filing</div>
+              <div class="feature-desc">Direct submission to IRS MeF A2A system</div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="actions">
+          <a href="/portal" class="btn btn-primary">
+            <span>Continue to Secure Portal →</span>
+          </a>
+          <a href="/" class="btn btn-secondary">
+            <span>← Back to Home</span>
+          </a>
+        </div>
+        
+        <div class="trust-pills">
+          <div class="pill">🔒 256-bit Encryption</div>
+          <div class="pill">⚡ IRS e-File Ready</div>
+          <div class="pill">✅ SOC 2 Practices</div>
+        </div>
+        
+        <div class="help-text">
+          <strong>Need Help?</strong>
+          <p>
+            Call <a href="tel:5124896749" class="help-link">(512) 489-6749</a> or email 
+            <a href="mailto:info@rosstaxprepandbookkeeping.com" class="help-link">info@rosstaxprepandbookkeeping.com</a>
+          </p>
+        </div>
+        
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <div class="container">
+      <div class="footer-content">
+        <div>&copy; 2026 Ross Tax Prep & Bookkeeping LLC</div>
+        <div class="footer-links">
+          <a href="/privacy-policy.html">Privacy Policy</a>
+          <a href="/terms.html">Terms of Service</a>
+          <a href="/security.html">Security</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

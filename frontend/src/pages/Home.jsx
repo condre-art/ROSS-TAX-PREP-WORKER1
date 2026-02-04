@@ -150,6 +150,32 @@ export default function Home() {
       fontWeight: TYPOGRAPHY.fontWeight.bold,
       color: COLORS.navy[900],
       marginBottom: SPACING.sm
+    },
+    lmsSection: {
+      padding: `${SPACING['3xl']} ${SPACING.lg}`,
+      background: `linear-gradient(135deg, ${COLORS.navy[900]} 0%, ${COLORS.navy[800]} 100%)`,
+      color: COLORS.white
+    },
+    lmsCard: {
+      maxWidth: '1100px',
+      margin: '0 auto',
+      display: 'grid',
+      gridTemplateColumns: '1.1fr 1fr',
+      gap: SPACING['2xl'],
+      alignItems: 'center'
+    },
+    lmsBadge: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: SPACING.sm,
+      background: 'rgba(243, 160, 6, 0.15)',
+      color: COLORS.gold[500],
+      border: `1px solid ${COLORS.gold[500]}`,
+      padding: `${SPACING.sm} ${SPACING.md}`,
+      borderRadius: '999px',
+      fontSize: TYPOGRAPHY.fontSize.sm,
+      fontWeight: TYPOGRAPHY.fontWeight.medium,
+      marginBottom: SPACING.lg
     }
   };
 
@@ -237,6 +263,38 @@ export default function Home() {
                 Fast refund processing, payment plan options, and refund advance services. Where's my refund tracking included.
               </p>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* LMS Section */}
+      <section style={styles.lmsSection} id="lms">
+        <div style={styles.lmsCard}>
+          <div>
+            <div style={styles.lmsBadge}>🎓 Branded LMS • Higher Education Standards</div>
+            <h2 style={{ ...styles.sectionTitle, color: COLORS.gold[500], textAlign: 'left', marginBottom: SPACING.lg }}>
+              Ross Tax Prep Learning Management System
+            </h2>
+            <p style={{ fontSize: TYPOGRAPHY.fontSize.lg, color: COLORS.grey[200], marginBottom: SPACING.xl }}>
+              Role-based courses with verified sections, compliance checklists, and course uploads ready for approval.
+            </p>
+            <div style={styles.buttonGroup}>
+              <Button as={Link} to="/lms">
+                Open LMS Portal
+              </Button>
+              <Button as={Link} to="/intake" variant="outline">
+                Enroll as Client
+              </Button>
+            </div>
+          </div>
+          <div style={{ background: 'rgba(255,255,255,0.08)', padding: SPACING.xl, borderRadius: 16 }}>
+            <h3 style={{ color: COLORS.white, marginTop: 0 }}>LMS Highlights</h3>
+            <ul style={{ lineHeight: 1.8, color: COLORS.grey[200], paddingLeft: 20 }}>
+              <li>Course-by-course section breakdown with objectives</li>
+              <li>Uploads tracked by course (syllabus, slides, checklists)</li>
+              <li>Role-based access for clients, preparers, and EROs</li>
+              <li>Audit-ready documentation for IRS and higher-ed reviews</li>
+            </ul>
           </div>
         </div>
       </section>

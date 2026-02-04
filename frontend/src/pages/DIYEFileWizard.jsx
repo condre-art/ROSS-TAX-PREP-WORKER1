@@ -7,10 +7,23 @@ export default function DIYEFileWizard() {
   // Auth & Account State
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authMode, setAuthMode] = useState("login"); // "login" | "register"
-  const [accountData, setAccountData] = useState({ email: "", password: "", confirmPassword: "", username: "" });
+    const [accountData, setAccountData] = useState({ 
+      email: "", 
+      password: "", 
+      confirmPassword: "", 
+      username: "",
+      phone: "",
+      ssn: "",
+      idNumber: "",
+      idType: "DL", // DL, Passport, StateID
+      firstName: "",
+      lastName: "",
+      dob: ""
+    });
   const [mfaEnabled, setMfaEnabled] = useState(false);
   const [mfaCode, setMfaCode] = useState("");
   const [clientId, setClientId] = useState(null);
+    const [userRole, setUserRole] = useState("client"); // client, preparer, ero
 
   // Wizard State
   const [step, setStep] = useState(1);
@@ -699,6 +712,60 @@ export default function DIYEFileWizard() {
       setStatus({ type: "error", message: err.message });
     }
   };
+    const validateRegistration = () => {
+      const errors = [];
+      if (!accountData.firstName) errors.push("First name required");
+      if (!accountData.lastName) errors.push("Last name required");
+      if (!accountData.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(accountData.email)) errors.push("Valid email required");
+      if (!accountData.username || accountData.username.length < 3) errors.push("Username min 3 characters");
+      if (!accountData.password || accountData.password.length < 8) errors.push("Password min 8 characters");
+      if (accountData.password !== accountData.confirmPassword) errors.push("Passwords must match");
+      if (!accountData.phone) errors.push("Phone number required");
+      if (!accountData.ssn || accountData.ssn.length < 9) errors.push("Valid SSN required");
+      if (!accountData.idNumber) errors.push("ID number required");
+      if (!accountData.dob) errors.push("Date of birth required");
+      return errors;
+    };
+    const handleRegister = async () => {
+      const errors = validateRegistration();
+      if (errors.length > 0) {
+        setStatus({ type: "error", message: errors.join("; ") });
+        return;
+      }
+
+      setStatus({ type: "loading", message: "Creating account and verifying identity..." });
+      try {
+        const res = await fetch("/api/register/client", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            firstName: accountData.firstName,
+            lastName: accountData.lastName,
+            email: accountData.email,
+            username: accountData.username,
+            password: accountData.password,
+            phone: accountData.phone,
+            ssn: accountData.ssn,
+            idType: accountData.idType,
+            idNumber: accountData.idNumber,
+            dob: accountData.dob,
+            role: userRole
+          })
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+          setClientId(data.client_id);
+          setUserRole(data.role);
+          setMfaEnabled(true);
+          setStatus({ type: "success", message: "Account created! Verify your identity with 2FA code." });
+          setAuthMode("2fa");
+        } else {
+          throw new Error(data.error || "Registration failed");
+        }
+      } catch (err) {
+        setStatus({ type: "error", message: err.message });
+      }
 
   const handleLogin = async () => {
     if (!accountData.email || !accountData.password) {
@@ -857,6 +924,49 @@ export default function DIYEFileWizard() {
               <p style={{ color: "#666", marginBottom: 24 }}>
                 Enter the 6-digit code sent to your email.
               </p>
+          const handleRegister = async () => {
+            const errors = validateRegistration();
+            if (errors.length > 0) {
+              setStatus({ type: "error", message: errors.join("; ") });
+              return;
+            }
+
+            setStatus({ type: "loading", message: "Creating account and verifying identity..." });
+            try {
+              const res = await fetch("/api/register/client", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  firstName: accountData.firstName,
+                  lastName: accountData.lastName,
+                  email: accountData.email,
+                  username: accountData.username,
+                  password: accountData.password,
+                  phone: accountData.phone,
+                  ssn: accountData.ssn,
+                  idType: accountData.idType,
+                  idNumber: accountData.idNumber,
+                  dob: accountData.dob,
+                  role: userRole
+                })
+              });
+
+              const data = await res.json();
+              if (res.ok) {
+                setClientId(data.client_id);
+                setUserRole(data.role);
+                setMfaEnabled(true);
+                setStatus({ type: "success", message: "Account created! Verify your identity with 2FA code." });
+                setAuthMode("2fa");
+              } else {
+                throw new Error(data.error || "Registration failed");
+              }
+            } catch (err) {
+              setStatus({ type: "error", message: err.message });
+            }
+          };
+
+                  {authMode === "register" && (
               <label className="field">
                 <span>Authentication Code</span>
                 <input 

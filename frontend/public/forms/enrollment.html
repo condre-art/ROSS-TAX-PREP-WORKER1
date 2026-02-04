@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Course Enrollment | Ross Tax Academy</title>
+  <meta name="description" content="Enroll in Ross Tax Academy professional tax education programs"/>
+  <link rel="icon" type="image/png" href="/rtb-logo.png"/>
+  <style>
+    :root{
+      --navy:#071223; --gold:#f6c445; --ink:#eaf0ff; --muted:#b8c7ea;
+      --line:rgba(255,255,255,.12); --card:rgba(255,255,255,.06); --radius:18px; --max:720px;
+    }
+    *{box-sizing:border-box; margin:0; padding:0;}
+    body{
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color:var(--ink); line-height:1.6;
+      background:linear-gradient(180deg, #040a14, var(--navy));
+      min-height:100vh; padding:40px 20px;
+    }
+    .container{max-width:var(--max); margin:0 auto;}
+    
+    .form-card{
+      background:rgba(255,255,255,.08); border:1px solid var(--line); border-radius:var(--radius);
+      padding:40px; backdrop-filter:blur(20px);
+    }
+    
+    h1{font-size:28px; margin-bottom:8px;}
+    .subtitle{color:var(--muted); font-size:14px; margin-bottom:28px;}
+    
+    .form-section{margin-bottom:32px; padding-bottom:28px; border-bottom:1px solid var(--line);}
+    .form-section:last-child{border-bottom:0; margin-bottom:0;}
+    .section-title{font-size:18px; font-weight:700; margin-bottom:16px; color:var(--gold);}
+    
+    .form-group{margin-bottom:20px;}
+    label{display:block; font-size:13px; font-weight:700; margin-bottom:6px; color:var(--ink);}
+    .required{color:#ef4444;}
+    
+    input[type="text"],
+    input[type="email"],
+    input[type="tel"],
+    input[type="date"],
+    select,
+    textarea{
+      width:100%; padding:10px 14px; border-radius:10px; font-size:14px;
+      background:rgba(255,255,255,.05); border:1px solid var(--line); color:var(--ink);
+      font-family:inherit;
+    }
+    input:focus, select:focus, textarea:focus{
+      outline:none; border-color:var(--gold); background:rgba(255,255,255,.08);
+    }
+    textarea{resize:vertical; min-height:100px;}
+    
+    .form-row{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+    @media (max-width:640px){.form-row{grid-template-columns:1fr;}}
+    
+    .radio-group{display:flex; gap:16px; flex-wrap:wrap;}
+    .radio-option{display:flex; align-items:center; gap:8px; padding:10px 16px; border-radius:10px;
+      background:rgba(255,255,255,.05); border:1px solid var(--line); cursor:pointer; transition:all .2s;}
+    .radio-option:hover{background:rgba(255,255,255,.08);}
+    .radio-option input{margin:0;}
+    
+    .checkbox-group{display:flex; align-items:flex-start; gap:10px; padding:12px; border-radius:10px;
+      background:rgba(59,130,246,.08); border:1px solid rgba(59,130,246,.2);}
+    .checkbox-group input{margin-top:4px;}
+    .checkbox-group label{margin-bottom:0; font-weight:400; font-size:13px; line-height:1.6;}
+    
+    .info-box{
+      background:rgba(249,115,22,.08); border:1px solid rgba(249,115,22,.2); border-radius:10px;
+      padding:16px; margin:16px 0; font-size:13px; line-height:1.7; color:var(--muted);
+    }
+    .info-box strong{color:var(--ink); display:block; margin-bottom:6px;}
+    
+    .price-summary{
+      background:rgba(16,185,129,.08); border:1px solid rgba(16,185,129,.2); border-radius:12px;
+      padding:20px; margin:20px 0;
+    }
+    .price-row{display:flex; justify-content:space-between; padding:8px 0; font-size:14px;}
+    .price-row.total{border-top:1px solid var(--line); margin-top:12px; padding-top:16px; font-size:18px; font-weight:800; color:var(--gold);}
+    
+    .btn{display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:14px 24px;
+      border-radius:12px; text-decoration:none; font-weight:700; font-size:14px; border:0; cursor:pointer;
+      background:linear-gradient(180deg, var(--gold), #f2b60f); color:#08162c; width:100%;}
+    .btn:hover{transform:translateY(-1px); box-shadow:0 4px 16px rgba(246,196,69,.3);}
+    .btn:disabled{opacity:.5; cursor:not-allowed; transform:none;}
+    
+    .error{color:#ef4444; font-size:12px; margin-top:6px;}
+    .success{background:rgba(16,185,129,.1); border:1px solid rgba(16,185,129,.3); border-radius:10px; padding:20px; text-align:center; color:#10b981;}
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="form-card">
+      <h1>Course Enrollment Application</h1>
+      <p class="subtitle">Complete this form to begin your Ross Tax Academy education</p>
+      
+      <form id="enrollmentForm">
+        
+        <!-- Student Information -->
+        <div class="form-section">
+          <h2 class="section-title">1. Student Information</h2>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label>First Name <span class="required">*</span></label>
+              <input type="text" name="first_name" required/>
+            </div>
+            <div class="form-group">
+              <label>Last Name <span class="required">*</span></label>
+              <input type="text" name="last_name" required/>
+            </div>
+          </div>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label>Email Address <span class="required">*</span></label>
+              <input type="email" name="email" required/>
+            </div>
+            <div class="form-group">
+              <label>Phone Number <span class="required">*</span></label>
+              <input type="tel" name="phone" required/>
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label>Mailing Address</label>
+            <input type="text" name="address" placeholder="Street address"/>
+          </div>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label>City</label>
+              <input type="text" name="city"/>
+            </div>
+            <div class="form-group">
+              <label>State</label>
+              <input type="text" name="state" placeholder="TX"/>
+            </div>
+          </div>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label>ZIP Code</label>
+              <input type="text" name="zip"/>
+            </div>
+            <div class="form-group">
+              <label>Date of Birth</label>
+              <input type="date" name="dob"/>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Course Selection -->
+        <div class="form-section">
+          <h2 class="section-title">2. Course Selection</h2>
+          
+          <div class="form-group">
+            <label>Select Program <span class="required">*</span></label>
+            <select name="course_id" id="courseSelect" required>
+              <option value="">-- Choose a program --</option>
+              <option value="TP-101" data-price="599">Tax Preparer Certification ($599)</option>
+              <option value="TP-201" data-price="799">Advanced Tax Preparation ($799)</option>
+              <option value="BT-301" data-price="699">Business Tax & Bookkeeping ($699)</option>
+              <option value="EA-401" data-price="899">Enrolled Agent Exam Prep ($899)</option>
+              <option value="AI-501" data-price="399">AI-Assisted Tax Learning ($399)</option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label>Preferred Start Date <span class="required">*</span></label>
+            <select name="start_date" required>
+              <option value="">-- Select start date --</option>
+              <option value="2026-02-17">February 17, 2026</option>
+              <option value="2026-03-03">March 3, 2026</option>
+              <option value="2026-03-17">March 17, 2026</option>
+              <option value="2026-04-07">April 7, 2026</option>
+            </select>
+          </div>
+        </div>
+        
+        <!-- Payment Method -->
+        <div class="form-section">
+          <h2 class="section-title">3. Payment Method</h2>
+          
+          <div class="form-group">
+            <label>How would you like to pay? <span class="required">*</span></label>
+            <div class="radio-group">
+              <label class="radio-option">
+                <input type="radio" name="payment_method" value="full" required/>
+                <span>Pay in Full</span>
+              </label>
+              <label class="radio-option">
+                <input type="radio" name="payment_method" value="payment_plan" required/>
+                <span>Payment Plan</span>
+              </label>
+              <label class="radio-option">
+                <input type="radio" name="payment_method" value="employer" required/>
+                <span>Employer Billing</span>
+              </label>
+            </div>
+          </div>
+          
+          <div id="paymentPlanOptions" style="display:none; margin-top:16px;">
+            <div class="form-group">
+              <label>Payment Plan Terms</label>
+              <select name="payment_plan_months">
+                <option value="4">4 monthly payments</option>
+                <option value="6">6 monthly payments</option>
+                <option value="8">8 monthly payments</option>
+              </select>
+            </div>
+            <div class="info-box">
+              <strong>Payment Plan Details:</strong>
+              No interest charged. First payment due at enrollment. Automatic monthly billing.
+            </div>
+          </div>
+          
+          <div id="employerBillingOptions" style="display:none; margin-top:16px;">
+            <div class="form-group">
+              <label>Employer Name</label>
+              <input type="text" name="employer_name"/>
+            </div>
+            <div class="form-group">
+              <label>Employer Contact Email</label>
+              <input type="email" name="employer_email"/>
+            </div>
+            <div class="info-box">
+              <strong>Employer Billing:</strong>
+              We'll send an invoice to your employer for approval. Access granted after employer payment.
+            </div>
+          </div>
+        </div>
+        
+        <!-- Financial Aid -->
+        <div class="form-section">
+          <h2 class="section-title">4. Financial Aid (Optional)</h2>
+          
+          <div class="form-group">
+            <label>Are you applying for financial aid or employer sponsorship?</label>
+            <div class="radio-group">
+              <label class="radio-option">
+                <input type="radio" name="financial_aid" value="no" checked/>
+                <span>No</span>
+              </label>
+              <label class="radio-option">
+                <input type="radio" name="financial_aid" value="fafsa"/>
+                <span>FAFSA / Federal Aid</span>
+              </label>
+              <label class="radio-option">
+                <input type="radio" name="financial_aid" value="workforce"/>
+                <span>Workforce Development</span>
+              </label>
+              <label class="radio-option">
+                <input type="radio" name="financial_aid" value="military"/>
+                <span>Military / VA Benefits</span>
+              </label>
+            </div>
+          </div>
+          
+          <div class="info-box">
+            <strong>FAFSA-Compatible Documentation:</strong>
+            Ross Tax Academy provides enrollment verification and hour documentation for financial aid applications through accredited partner institutions. Contact us at (512) 489-6749 for support.
+          </div>
+        </div>
+        
+        <!-- Price Summary -->
+        <div class="price-summary" id="priceSummary" style="display:none;">
+          <div class="price-row">
+            <span>Program Tuition:</span>
+            <span id="tuition">$0</span>
+          </div>
+          <div class="price-row">
+            <span>Enrollment Fee:</span>
+            <span>$0</span>
+          </div>
+          <div class="price-row total">
+            <span>Total:</span>
+            <span id="total">$0</span>
+          </div>
+        </div>
+        
+        <!-- Agreements -->
+        <div class="form-section">
+          <h2 class="section-title">5. Enrollment Agreement</h2>
+          
+          <div class="checkbox-group">
+            <input type="checkbox" name="agreement_terms" id="agreeTerms" required/>
+            <label for="agreeTerms">
+              I acknowledge that I have read and agree to the <a href="/terms.html" target="_blank" style="color:var(--gold);">Terms of Service</a> 
+              and <a href="/refund-policy.html" target="_blank" style="color:var(--gold);">Refund Policy</a>. 
+              I understand that certificates are instructor-issued based on demonstrated competency and course completion. 
+              <span class="required">*</span>
+            </label>
+          </div>
+          
+          <div class="checkbox-group" style="margin-top:12px;">
+            <input type="checkbox" name="agreement_disclaimer" id="agreeDisclaimer" required/>
+            <label for="agreeDisclaimer">
+              I understand that Ross Tax Academy prepares students for professional tax practice and IRS certification exams. 
+              AI tools are used for practice and study support only—all certifications require human evaluation and instructor approval. 
+              <span class="required">*</span>
+            </label>
+          </div>
+        </div>
+        
+        <!-- Submit -->
+        <button type="submit" class="btn" id="submitBtn">
+          <span>Submit Enrollment Application →</span>
+        </button>
+        
+        <div id="successMessage" class="success" style="display:none; margin-top:20px;">
+          <strong>✓ Enrollment Application Submitted!</strong>
+          <p style="margin-top:8px; color:var(--muted);">
+            We'll review your application and contact you within 24 hours with next steps and payment instructions.
+          </p>
+        </div>
+        
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('enrollmentForm');
+    const courseSelect = document.getElementById('courseSelect');
+    const priceSummary = document.getElementById('priceSummary');
+    const tuitionEl = document.getElementById('tuition');
+    const totalEl = document.getElementById('total');
+    const submitBtn = document.getElementById('submitBtn');
+    const successMessage = document.getElementById('successMessage');
+    
+    // Update price when course selected
+    courseSelect.addEventListener('change', (e) => {
+      const selected = e.target.selectedOptions[0];
+      const price = selected.dataset.price;
+      if (price) {
+        tuitionEl.textContent = '$' + price;
+        totalEl.textContent = '$' + price;
+        priceSummary.style.display = 'block';
+      } else {
+        priceSummary.style.display = 'none';
+      }
+    });
+    
+    // Show/hide payment method options
+    document.querySelectorAll('input[name="payment_method"]').forEach(radio => {
+      radio.addEventListener('change', (e) => {
+        document.getElementById('paymentPlanOptions').style.display = 
+          e.target.value === 'payment_plan' ? 'block' : 'none';
+        document.getElementById('employerBillingOptions').style.display = 
+          e.target.value === 'employer' ? 'block' : 'none';
+      });
+    });
+    
+    // Form submission
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span>Submitting...</span>';
+      
+      const formData = new FormData(form);
+      const data = Object.fromEntries(formData.entries());
+      
+      try {
+        const response = await fetch('/api/lms/enroll', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        
+        if (response.ok) {
+          form.style.display = 'none';
+          successMessage.style.display = 'block';
+        } else {
+          throw new Error('Enrollment failed');
+        }
+      } catch (error) {
+        alert('Enrollment submission failed. Please try again or call (512) 489-6749.');
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<span>Submit Enrollment Application →</span>';
+      }
+    });
+  </script>
+
+</body>
+</html>

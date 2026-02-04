@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Ross Tax Academy | Professional Tax Education & Certification</title>
+  <meta name="description" content="PTIN-ready tax preparer training, EA exam prep, business tax education, and AI-assisted learning. FAFSA-compatible through accredited partners."/>
+  
+  <!-- Favicon & Browser Icons -->
+  <link rel="icon" type="image/x-icon" href="/images/favicon.ico"/>
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png"/>
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png"/>
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png"/>
+  <link rel="shortcut icon" href="/rtb-logo.png"/>
+  
+  <!-- Open Graph / Facebook / LinkedIn -->
+  <meta property="og:title" content="Ross Tax Academy | Professional Tax Certification Programs"/>
+  <meta property="og:description" content="IRS-compliant certification programs: Tax Preparation, Bookkeeping, Enrolled Agent Prep, Business Tax, and AI-Assisted Tax Services"/>
+  <meta property="og:image" content="https://rosstaxprep.com/images/ross-logo-social.png"/>
+  <meta property="og:image:width" content="1200"/>
+  <meta property="og:image:height" content="630"/>
+  <meta property="og:url" content="https://rosstaxprep.com/academy.html"/>
+  <meta property="og:type" content="website"/>
+  <meta property="og:site_name" content="Ross Tax Academy"/>
+  
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image"/>
+  <meta name="twitter:title" content="Ross Tax Academy - Professional Certification Programs"/>
+  <meta name="twitter:description" content="5 Certificate Programs | $399-$899 | IRS-Compliant | Career-Ready Training"/>
+  <meta name="twitter:image" content="https://rosstaxprep.com/images/ross-logo-social.png"/>
+  <style>
+    :root{
+      --navy:#071223; --gold:#f6c445; --ink:#eaf0ff; --muted:#b8c7ea;
+      --line:rgba(255,255,255,.12); --card:rgba(255,255,255,.06); --radius:18px; --max:1120px;
+      --success:#10b981; --warning:#f59e0b;
+    }
+    *{box-sizing:border-box; margin:0; padding:0;}
+    body{
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color:var(--ink); line-height:1.6;
+      background:
+        radial-gradient(900px 600px at 20% 10%, rgba(246,196,69,.12), transparent 60%),
+        radial-gradient(1000px 700px at 85% 15%, rgba(59,130,246,.18), transparent 60%),
+        linear-gradient(180deg, #040a14, var(--navy));
+      min-height:100vh;
+    }
+    .container{max-width:var(--max); margin:0 auto; padding:0 20px;}
+    
+    header{border-bottom:1px solid var(--line); background:rgba(7,18,35,.7); backdrop-filter:blur(12px); position:sticky; top:0; z-index:100;}
+    nav{display:flex; justify-content:space-between; align-items:center; padding:14px 0; flex-wrap:wrap; gap:12px;}
+    a{color:inherit; transition:color .2s;}
+    .brand{display:flex; gap:10px; align-items:center; text-decoration:none;}
+    .logo{width:42px; height:42px; border-radius:14px;
+      background:linear-gradient(135deg, var(--gold), rgba(59,130,246,.8));
+      display:flex; align-items:center; justify-content:center; font-weight:900; color:#041026; font-size:18px;}
+    .brand-text{font-weight:700; font-size:15px;}
+    .menu{display:flex; gap:14px; flex-wrap:wrap; align-items:center;}
+    .menu a{text-decoration:none; color:var(--muted); font-size:13.5px; padding:6px 10px; border-radius:8px;}
+    .menu a:hover{color:var(--ink); background:rgba(255,255,255,.06);}
+    
+    .btn{display:inline-flex; align-items:center; justify-content:center; gap:6px; padding:10px 18px; border-radius:12px; text-decoration:none; font-weight:700; font-size:13px;
+      background:linear-gradient(180deg, var(--gold), #f2b60f); color:#08162c; border:0; cursor:pointer;}
+    .btn:hover{transform:translateY(-1px); box-shadow:0 4px 16px rgba(246,196,69,.3);}
+    .btn-secondary{background:rgba(255,255,255,.08); border:1px solid var(--line); color:var(--ink);}
+    .btn-secondary:hover{background:rgba(255,255,255,.12); transform:translateY(-1px);}
+    
+    h1{margin:0 0 14px; font-size:42px; line-height:1.1;}
+    h2{margin:0 0 12px; font-size:32px; line-height:1.2;}
+    h3{margin:0 0 8px; font-size:20px;}
+    p{margin:0 0 16px; color:var(--muted);}
+    
+    .hero{padding:60px 0 40px; text-align:center;}
+    .hero h1{background:linear-gradient(135deg, var(--ink), var(--gold)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;}
+    .hero p{max-width:700px; margin:0 auto 28px; font-size:16px;}
+    .trust-line{display:flex; justify-content:center; gap:20px; flex-wrap:wrap; margin-top:24px; font-size:13px; color:var(--muted);}
+    .trust-line span{display:flex; align-items:center; gap:6px;}
+    
+    .section{padding:48px 0;}
+    .section-title{text-align:center; margin-bottom:36px;}
+    
+    .courses{display:grid; grid-template-columns:repeat(auto-fit, minmax(340px, 1fr)); gap:20px; margin-top:24px;}
+    
+    .course-card{
+      background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+      padding:28px; transition:all .3s ease; position:relative; overflow:hidden;
+    }
+    .course-card:hover{background:rgba(255,255,255,.09); border-color:rgba(246,196,69,.3); transform:translateY(-3px); box-shadow:0 8px 32px rgba(0,0,0,.3);}
+    
+    .course-badge{
+      position:absolute; top:16px; right:16px; padding:4px 10px; border-radius:8px; font-size:11px; font-weight:700;
+      background:rgba(16,185,129,.2); border:1px solid rgba(16,185,129,.4); color:var(--success);
+    }
+    .course-badge.advanced{background:rgba(249,115,22,.2); border-color:rgba(249,115,22,.4); color:#fb923c;}
+    
+    .course-icon{width:56px; height:56px; border-radius:14px; margin-bottom:16px;
+      background:linear-gradient(135deg, var(--gold), rgba(59,130,246,.8));
+      display:flex; align-items:center; justify-content:center; font-size:28px;}
+    
+    .course-title{font-size:20px; font-weight:800; margin-bottom:10px; color:var(--ink);}
+    .course-desc{font-size:14px; color:var(--muted); margin-bottom:16px; line-height:1.6;}
+    .course-meta{display:flex; gap:16px; margin-bottom:16px; font-size:12px; color:var(--muted);}
+    .course-meta span{display:flex; align-items:center; gap:4px;}
+    
+    .course-price{font-size:28px; font-weight:900; color:var(--gold); margin-bottom:12px;}
+    .course-price-note{font-size:11px; color:var(--muted); margin-bottom:16px;}
+    
+    .course-features{list-style:none; margin-bottom:20px;}
+    .course-features li{padding:6px 0; font-size:13px; color:var(--muted); display:flex; gap:8px; align-items:flex-start;}
+    .course-features li:before{content:"✓"; color:var(--gold); font-weight:700; flex-shrink:0;}
+    
+    .info-box{
+      background:rgba(59,130,246,.08); border:1px solid rgba(59,130,246,.2); border-radius:14px;
+      padding:24px; margin:32px 0; text-align:center;
+    }
+    .info-box h3{color:var(--ink); margin-bottom:12px;}
+    .info-box p{font-size:14px; line-height:1.7; margin-bottom:20px;}
+    
+    .features-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:18px; margin-top:24px;}
+    .feature-card{
+      background:rgba(255,255,255,.05); border:1px solid var(--line); border-radius:12px;
+      padding:20px; text-align:center;
+    }
+    .feature-icon{font-size:36px; margin-bottom:12px;}
+    .feature-title{font-size:16px; font-weight:700; margin-bottom:8px; color:var(--ink);}
+    .feature-desc{font-size:13px; color:var(--muted); line-height:1.6;}
+    
+    footer{border-top:1px solid var(--line); padding:28px 0; margin-top:60px;}
+    .footer-content{display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px; font-size:13px; color:var(--muted);}
+    .footer-links{display:flex; gap:18px; flex-wrap:wrap;}
+    .footer-links a{color:var(--muted); text-decoration:none;}
+    .footer-links a:hover{color:var(--ink);}
+    
+    @media (max-width:768px){
+      h1{font-size:32px;}
+      h2{font-size:26px;}
+      .courses{grid-template-columns:1fr;}
+      .trust-line{flex-direction:column; align-items:center;}
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="container">
+      <nav>
+        <a href="/" class="brand">
+          <div class="logo">RT</div>
+          <div class="brand-text">Ross Tax Academy</div>
+        </a>
+        <div class="menu">
+          <a href="/">Home</a>
+          <a href="/education.html">Courses</a>
+          <a href="/academy.html">Academy</a>
+          <a href="/about.html">About</a>
+          <a href="/contact.html">Contact</a>
+          <a href="/portal-login.html" class="btn">Student Portal</a>
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="container">
+      <h1>Professional Tax Education</h1>
+      <p>
+        IRS-compliant certification programs preparing you for PTIN, EA exams, and professional tax practice. 
+        Affordable tuition with payment plans and employer billing available.
+      </p>
+      <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+        <a href="#courses" class="btn">View Programs</a>
+        <a href="/contact.html?subject=Academy+Enrollment" class="btn btn-secondary">Request Information</a>
+      </div>
+      <div class="trust-line">
+        <span>🎓 IRS-Compliant Training</span>
+        <span>📜 Verified Certificates</span>
+        <span>💳 Payment Plans Available</span>
+        <span>🤝 FAFSA-Compatible via Partners</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" style="background:rgba(255,255,255,.02); border-top:1px solid var(--line); border-bottom:1px solid var(--line);">
+    <div class="container">
+      <div class="section-title">
+        <h2>What You Get</h2>
+      </div>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">🎥</div>
+          <div class="feature-title">Video Lessons</div>
+          <div class="feature-desc">HD instructor-led lessons with real-world examples and case studies</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📚</div>
+          <div class="feature-title">Digital Textbooks</div>
+          <div class="feature-desc">Downloadable course materials, PDFs, and reference guides</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">✅</div>
+          <div class="feature-title">Practice Quizzes</div>
+          <div class="feature-desc">Module assessments with instant feedback and explanations</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📜</div>
+          <div class="feature-title">QR-Verified Certificates</div>
+          <div class="feature-desc">PDF certificates with QR codes for instant verification</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🤖</div>
+          <div class="feature-title">AI Study Assistants</div>
+          <div class="feature-desc">AI-powered explanations and practice questions (instructor-controlled)</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">👥</div>
+          <div class="feature-title">Instructor Support</div>
+          <div class="feature-desc">Direct access to tax professionals for questions and guidance</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="courses">
+    <div class="container">
+      <div class="section-title">
+        <h2>Tax Professional Programs</h2>
+        <p style="max-width:700px; margin:0 auto; color:var(--muted);">
+          Choose your path: entry-level tax prep, advanced topics, business taxation, or EA certification.
+        </p>
+      </div>
+      
+      <div class="courses">
+        
+        <!-- TP-101: Tax Preparer Certification -->
+        <div class="course-card">
+          <div class="course-badge">Beginner</div>
+          <div class="course-icon">🎓</div>
+          <h3 class="course-title">Tax Preparer Certification Program</h3>
+          <p class="course-desc">
+            Foundational training for individual tax returns. Prepares you for PTIN application and entry-level roles.
+          </p>
+          <div class="course-meta">
+            <span>⏱️ 12 weeks</span>
+            <span>📖 60 hours</span>
+            <span>📜 Certificate</span>
+          </div>
+          <div class="course-price">$599</div>
+          <div class="course-price-note">Payment plans from $150/month</div>
+          <ul class="course-features">
+            <li>Form 1040 preparation mastery</li>
+            <li>Filing status & dependents</li>
+            <li>W-2, 1099, and income types</li>
+            <li>Credits, deductions, ethics</li>
+            <li>Client intake workflows</li>
+            <li>10+ practice returns</li>
+          </ul>
+          <a href="/contact.html?course=TP-101" class="btn" style="width:100%;">Enroll Now</a>
+        </div>
+        
+        <!-- TP-201: Advanced Tax Preparation -->
+        <div class="course-card">
+          <div class="course-badge advanced">Advanced</div>
+          <div class="course-icon">🏆</div>
+          <h3 class="course-title">Advanced Tax Preparation</h3>
+          <p class="course-desc">
+            Complex returns including Schedule C, rental income, and multi-state scenarios for experienced preparers.
+          </p>
+          <div class="course-meta">
+            <span>⏱️ 14 weeks</span>
+            <span>📖 75 hours</span>
+            <span>📜 Certificate + 15 CE</span>
+          </div>
+          <div class="course-price">$799</div>
+          <div class="course-price-note">Payment plans from $200/month</div>
+          <ul class="course-features">
+            <li>Schedule C (self-employment)</li>
+            <li>Schedule E (rental properties)</li>
+            <li>Complex credits & phase-outs</li>
+            <li>IRS correspondence & audits</li>
+            <li>20+ complex practice returns</li>
+            <li>Capstone project required</li>
+          </ul>
+          <a href="/contact.html?course=TP-201" class="btn" style="width:100%;">Enroll Now</a>
+        </div>
+        
+        <!-- BT-301: Business Tax & Bookkeeping -->
+        <div class="course-card">
+          <div class="course-badge">Intermediate</div>
+          <div class="course-icon">💼</div>
+          <h3 class="course-title">Business Tax & Bookkeeping</h3>
+          <p class="course-desc">
+            Entity structures, bookkeeping essentials, payroll, and business returns (1065, 1120S).
+          </p>
+          <div class="course-meta">
+            <span>⏱️ 12 weeks</span>
+            <span>📖 65 hours</span>
+            <span>📜 Certificate + 12 CE</span>
+          </div>
+          <div class="course-price">$699</div>
+          <div class="course-price-note">Payment plans from $175/month</div>
+          <ul class="course-features">
+            <li>LLC, S-Corp, C-Corp, Partnership</li>
+            <li>Bookkeeping & accounting software</li>
+            <li>Payroll & employment tax</li>
+            <li>Form 1065 & 1120S preparation</li>
+            <li>Year-end closeout procedures</li>
+            <li>Entity comparison project</li>
+          </ul>
+          <a href="/contact.html?course=BT-301" class="btn" style="width:100%;">Enroll Now</a>
+        </div>
+        
+        <!-- EA-401: Enrolled Agent Exam Prep -->
+        <div class="course-card">
+          <div class="course-badge advanced">Advanced</div>
+          <div class="course-icon">🥇</div>
+          <h3 class="course-title">Enrolled Agent Exam Preparation</h3>
+          <p class="course-desc">
+            Comprehensive prep for all three parts of the IRS Special Enrollment Examination (SEE).
+          </p>
+          <div class="course-meta">
+            <span>⏱️ 16 weeks</span>
+            <span>📖 90 hours</span>
+            <span>🎯 Pass Guarantee</span>
+          </div>
+          <div class="course-price">$899</div>
+          <div class="course-price-note">Payment plans from $225/month</div>
+          <ul class="course-features">
+            <li>Part 1: Individuals (30 hours)</li>
+            <li>Part 2: Businesses (28 hours)</li>
+            <li>Part 3: Representation (24 hours)</li>
+            <li>6 full-length practice exams</li>
+            <li>500+ practice questions</li>
+            <li>Pass guarantee included</li>
+          </ul>
+          <a href="/contact.html?course=EA-401" class="btn" style="width:100%;">Enroll Now</a>
+        </div>
+        
+        <!-- AI-501: AI-Assisted Tax Learning -->
+        <div class="course-card">
+          <div class="course-badge">All Levels</div>
+          <div class="course-icon">🤖</div>
+          <h3 class="course-title">AI-Assisted Tax Learning</h3>
+          <p class="course-desc">
+            Leverage AI tools for research, practice questions, and workflow optimization. Instructor-controlled prompts.
+          </p>
+          <div class="course-meta">
+            <span>⏱️ 8 weeks</span>
+            <span>📖 30 hours</span>
+            <span>📜 Certificate + 6 CE</span>
+          </div>
+          <div class="course-price">$399</div>
+          <div class="course-price-note">Payment plans from $100/month</div>
+          <ul class="course-features">
+            <li>AI for tax research & reference</li>
+            <li>Practice scenario generation</li>
+            <li>Client explanation tools</li>
+            <li>Workflow automation techniques</li>
+            <li>Ethics & professional responsibilities</li>
+            <li>Note: AI assists, instructor certifies</li>
+          </ul>
+          <a href="/contact.html?course=AI-501" class="btn" style="width:100%;">Enroll Now</a>
+        </div>
+        
+      </div>
+    </div>
+  </section>
+
+  <section class="section" style="background:rgba(255,255,255,.02); border-top:1px solid var(--line); border-bottom:1px solid var(--line);">
+    <div class="container">
+      <div class="info-box">
+        <h3>Financial Aid & Payment Options</h3>
+        <p>
+          <strong>FAFSA-Compatible Through Accredited Partners:</strong> Our programs qualify for workforce development funding and employer-sponsored education benefits. We provide all necessary documentation for financial aid applications.
+        </p>
+        <p style="margin-bottom:12px;">
+          <strong>Payment Plans Available:</strong> Break tuition into affordable monthly installments with no interest. Employer billing and group discounts also offered.
+        </p>
+        <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+          <a href="/contact.html?subject=Financial+Aid" class="btn btn-secondary">Financial Aid Info</a>
+          <a href="/contact.html?subject=Payment+Plans" class="btn btn-secondary">Payment Plans</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container" style="text-align:center;">
+      <h2>Ready to Start Your Tax Career?</h2>
+      <p style="max-width:600px; margin:16px auto 28px; color:var(--muted);">
+        Join hundreds of students advancing their careers with Ross Tax Academy. IRS-compliant training, verified certificates, and real-world preparation.
+      </p>
+      <a href="/contact.html?subject=Academy+Enrollment" class="btn" style="display:inline-flex; padding:14px 28px; font-size:15px;">Request Information →</a>
+    </div>
+  </section>
+
+  <footer>
+    <div class="container">
+      <div class="footer-content">
+        <div>&copy; 2026 Ross Tax Prep & Bookkeeping LLC / Ross Tax Academy</div>
+        <div class="footer-links">
+          <a href="/privacy-policy.html">Privacy Policy</a>
+          <a href="/terms.html">Terms of Service</a>
+          <a href="/refund-policy.html">Refund Policy</a>
+          <a href="/contact.html">Contact</a>
+        </div>
+      </div>
+      <div style="margin-top:16px; font-size:11px; color:var(--muted); text-align:center;">
+        <strong>Important:</strong> Ross Tax Academy programs prepare students for professional tax practice and IRS certification exams. 
+        Certificates are instructor-issued based on demonstrated competency. AI tools are used for practice and study support only—all certifications require human evaluation. 
+        Financial aid eligibility varies; contact us for FAFSA documentation support through accredited partner institutions.
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

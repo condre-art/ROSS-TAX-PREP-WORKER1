@@ -1,0 +1,141 @@
+<!-- Certificate Verification Page -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Certificate Verification | Ross Tax Academy</title>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<style>
+body{font-family:system-ui,-apple-system,sans-serif;background:#071223;color:#eaf0ff;padding:40px;margin:0}
+.card{max-width:700px;margin:auto;background:rgba(255,255,255,.06);
+border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:32px}
+h1{margin:0 0 24px;font-size:28px;text-align:center;color:#f6c445}
+.cert-info{background:rgba(255,255,255,.03);border-radius:12px;padding:20px;margin:20px 0}
+.cert-info p{margin:12px 0;font-size:16px;display:flex;justify-content:space-between;align-items:center}
+.cert-info strong{color:#f6c445}
+.status{font-size:48px;text-align:center;margin:24px 0}
+.status.valid{color:#27ae60}
+.status.revoked{color:#e74c3c}
+.status.notfound{color:#95a5a6}
+.badge{display:inline-block;padding:6px 14px;border-radius:8px;font-size:14px;font-weight:700}
+.badge-valid{background:#27ae60;color:#fff}
+.badge-revoked{background:#e74c3c;color:#fff}
+.alert{padding:16px 20px;border-radius:10px;margin:16px 0;font-size:14px}
+.alert-danger{background:rgba(231,76,60,.15);border:2px solid rgba(231,76,60,.5);color:#ff6b6b}
+.footer{text-align:center;margin-top:32px;font-size:13px;color:rgba(234,240,255,.6)}
+.btn{display:inline-block;padding:10px 16px;border-radius:10px;background:#f6c445;color:#08162c;
+font-weight:800;text-decoration:none;font-size:14px;margin-top:16px}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>🏆 Certificate Verification</h1>
+  
+  <div id="loading" style="text-align:center;padding:40px">
+    <p>Verifying certificate...</p>
+  </div>
+
+  <div id="valid-cert" style="display:none">
+    <div class="status valid">✅</div>
+    <h2 style="text-align:center;color:#27ae60;margin-bottom:24px">Valid Certificate</h2>
+    
+    <div class="cert-info">
+      <p><strong>Certificate ID:</strong> <span id="cert-id"></span></p>
+      <p><strong>Student Name:</strong> <span id="student-name"></span></p>
+      <p><strong>Program:</strong> <span id="program-name"></span></p>
+      <p><strong>Issue Date:</strong> <span id="issue-date"></span></p>
+      <p><strong>Completion Date:</strong> <span id="completion-date"></span></p>
+      <p><strong>Status:</strong> <span class="badge badge-valid">Valid & Verified</span></p>
+    </div>
+
+    <div class="footer">
+      This certificate has been verified against Ross Tax Academy records.<br>
+      Certificate verification performed on <span id="verify-timestamp"></span>
+    </div>
+  </div>
+
+  <div id="revoked-cert" style="display:none">
+    <div class="status revoked">❌</div>
+    <h2 style="text-align:center;color:#e74c3c;margin-bottom:24px">Certificate Revoked</h2>
+    
+    <div class="alert alert-danger">
+      <strong>⚠️ This certificate has been revoked and is no longer valid.</strong>
+    </div>
+
+    <div class="cert-info">
+      <p><strong>Certificate ID:</strong> <span id="cert-id-revoked"></span></p>
+      <p><strong>Student Name:</strong> <span id="student-name-revoked"></span></p>
+      <p><strong>Original Issue Date:</strong> <span id="issue-date-revoked"></span></p>
+      <p><strong>Revocation Date:</strong> <span id="revoke-date"></span></p>
+      <p><strong>Reason:</strong> <span id="revoke-reason"></span></p>
+      <p><strong>Status:</strong> <span class="badge badge-revoked">Revoked</span></p>
+    </div>
+  </div>
+
+  <div id="notfound-cert" style="display:none">
+    <div class="status notfound">❓</div>
+    <h2 style="text-align:center;color:#95a5a6;margin-bottom:24px">Certificate Not Found</h2>
+    
+    <div class="alert alert-danger">
+      The certificate code you entered could not be verified in our system.
+    </div>
+
+    <p style="text-align:center;margin:24px 0">
+      Please verify the code and try again, or contact Ross Tax Academy support if you believe this is an error.
+    </p>
+
+    <div style="text-align:center">
+      <a class="btn" href="mailto:support@rosstaxprepandbookkeeping.com">Contact Support</a>
+    </div>
+  </div>
+
+  <div class="footer">
+    <p>Ross Tax Prep & Bookkeeping<br>
+    <a href="https://rosstaxprepandbookkeeping.com" style="color:#f6c445">rosstaxprepandbookkeeping.com</a></p>
+  </div>
+</div>
+
+<script>
+// Extract certificate code from URL
+const urlParams = new URLSearchParams(window.location.search);
+const certCode = urlParams.get('cert_id') || window.location.pathname.split('/verify/')[1];
+
+if (!certCode) {
+  document.getElementById('loading').innerHTML = '<p style="color:#e74c3c">No certificate code provided.</p>';
+} else {
+  // Fetch certificate verification
+  fetch(`/api/lms/certificates/verify/${certCode}`)
+    .then(r => {
+      if (!r.ok) throw new Error('Not found');
+      return r.json();
+    })
+    .then(data => {
+      document.getElementById('loading').style.display = 'none';
+
+      if (data.revoked) {
+        // Show revoked certificate
+        document.getElementById('revoked-cert').style.display = 'block';
+        document.getElementById('cert-id-revoked').textContent = data.certificateNumber;
+        document.getElementById('student-name-revoked').textContent = data.studentName;
+        document.getElementById('issue-date-revoked').textContent = data.issueDate;
+        document.getElementById('revoke-date').textContent = data.revokedAt || 'N/A';
+        document.getElementById('revoke-reason').textContent = data.revokedReason || 'Not specified';
+      } else {
+        // Show valid certificate
+        document.getElementById('valid-cert').style.display = 'block';
+        document.getElementById('cert-id').textContent = data.certificateNumber;
+        document.getElementById('student-name').textContent = data.studentName;
+        document.getElementById('program-name').textContent = data.programName;
+        document.getElementById('issue-date').textContent = data.issueDate;
+        document.getElementById('completion-date').textContent = data.completionDate;
+        document.getElementById('verify-timestamp').textContent = new Date().toLocaleString();
+      }
+    })
+    .catch(err => {
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('notfound-cert').style.display = 'block';
+    });
+}
+</script>
+</body>
+</html>
