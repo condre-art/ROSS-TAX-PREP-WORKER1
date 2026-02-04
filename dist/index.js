@@ -5,8 +5,15 @@ var __getOwnPropNames = Object.getOwnPropertyNames;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
 var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
+var __esm = (fn, res) => function __init() {
+  return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+};
 var __commonJS = (cb, mod) => function __require() {
   return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
+};
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
 };
 var __copyProps = (to, from, except, desc) => {
   if (from && typeof from === "object" || typeof from === "function") {
@@ -28,6 +35,227 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
 // (disabled):crypto
 var require_crypto = __commonJS({
   "(disabled):crypto"() {
+  }
+});
+
+// src/routes/serviceRequests.ts
+var serviceRequests_exports = {};
+__export(serviceRequests_exports, {
+  handleDocumentUpload: () => handleDocumentUpload,
+  handleServiceHistory: () => handleServiceHistory,
+  handleServiceRequest: () => handleServiceRequest,
+  handleUpdateServiceRequest: () => handleUpdateServiceRequest
+});
+async function handleServiceRequest(request, env) {
+  try {
+    const data = await request.json();
+    if (!data.client_id || !data.services || data.services.length === 0) {
+      return new Response(JSON.stringify({ error: "Missing required fields" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+    const requestId = `REQ-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const result = await env.DB.prepare(`
+      INSERT INTO service_requests (
+        request_id, client_id, services_json, documents_json, 
+        status, submitted_at, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      requestId,
+      data.client_id,
+      JSON.stringify(data.services),
+      JSON.stringify(data.documents || []),
+      data.status || "pending_approval",
+      data.submitted_at,
+      (/* @__PURE__ */ new Date()).toISOString()
+    ).run();
+    await env.DB.prepare(`
+      INSERT INTO audit_logs (
+        action, user_id, resource_type, resource_id, details, timestamp
+      ) VALUES (?, ?, ?, ?, ?, ?)
+    `).bind(
+      "service_request_submitted",
+      data.client_id,
+      "service_request",
+      requestId,
+      JSON.stringify({ service_count: data.services.length }),
+      (/* @__PURE__ */ new Date()).toISOString()
+    ).run();
+    return new Response(JSON.stringify({
+      success: true,
+      request_id: requestId,
+      message: "Service request submitted successfully"
+    }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (error) {
+    console.error("Service request error:", error);
+    return new Response(JSON.stringify({ error: "Internal server error" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+}
+async function handleServiceHistory(request, env) {
+  try {
+    const clientId = request.params?.clientId;
+    if (!clientId) {
+      return new Response(JSON.stringify({ error: "Client ID required" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+    const { results } = await env.DB.prepare(`
+      SELECT 
+        request_id, services_json, documents_json, status, 
+        submitted_at, updated_at, assigned_to, notes
+      FROM service_requests
+      WHERE client_id = ?
+      ORDER BY submitted_at DESC
+      LIMIT 50
+    `).bind(clientId).all();
+    const history = results?.map((row) => ({
+      request_id: row.request_id,
+      services: JSON.parse(row.services_json || "[]"),
+      documents: JSON.parse(row.documents_json || "[]"),
+      status: row.status,
+      submitted_at: row.submitted_at,
+      updated_at: row.updated_at,
+      assigned_to: row.assigned_to,
+      notes: row.notes
+    })) || [];
+    return new Response(JSON.stringify({ history }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (error) {
+    console.error("Service history error:", error);
+    return new Response(JSON.stringify({ error: "Internal server error" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+}
+async function handleUpdateServiceRequest(request, env) {
+  try {
+    const requestId = request.params?.requestId;
+    const data = await request.json();
+    if (!requestId) {
+      return new Response(JSON.stringify({ error: "Request ID required" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+    const updates = [];
+    const bindings = [];
+    if (data.status) {
+      updates.push("status = ?");
+      bindings.push(data.status);
+    }
+    if (data.assigned_to) {
+      updates.push("assigned_to = ?");
+      bindings.push(data.assigned_to);
+    }
+    if (data.notes) {
+      updates.push("notes = ?");
+      bindings.push(data.notes);
+    }
+    updates.push("updated_at = ?");
+    bindings.push((/* @__PURE__ */ new Date()).toISOString());
+    bindings.push(requestId);
+    await env.DB.prepare(`
+      UPDATE service_requests
+      SET ${updates.join(", ")}
+      WHERE request_id = ?
+    `).bind(...bindings).run();
+    await env.DB.prepare(`
+      INSERT INTO audit_logs (
+        action, resource_type, resource_id, details, timestamp
+      ) VALUES (?, ?, ?, ?, ?)
+    `).bind(
+      "service_request_updated",
+      "service_request",
+      requestId,
+      JSON.stringify(data),
+      (/* @__PURE__ */ new Date()).toISOString()
+    ).run();
+    return new Response(JSON.stringify({
+      success: true,
+      message: "Service request updated"
+    }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (error) {
+    console.error("Update service request error:", error);
+    return new Response(JSON.stringify({ error: "Internal server error" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+}
+async function handleDocumentUpload(request, env) {
+  try {
+    const formData = await request.formData();
+    const file = formData.get("document");
+    const clientId = formData.get("client_id");
+    const category = formData.get("category") || "service_request";
+    if (!file || !clientId) {
+      return new Response(JSON.stringify({ error: "Missing file or client ID" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+    const timestamp = Date.now();
+    const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
+    const key = `${category}/${clientId}/${timestamp}_${safeName}`;
+    await env.DOCUMENTS_BUCKET.put(key, file.stream(), {
+      httpMetadata: {
+        contentType: file.type
+      },
+      customMetadata: {
+        client_id: clientId,
+        category,
+        uploaded_at: (/* @__PURE__ */ new Date()).toISOString()
+      }
+    });
+    await env.DB.prepare(`
+      INSERT INTO documents (
+        client_id, filename, r2_key, file_type, category, uploaded_at
+      ) VALUES (?, ?, ?, ?, ?, ?)
+    `).bind(
+      clientId,
+      file.name,
+      key,
+      file.type,
+      category,
+      (/* @__PURE__ */ new Date()).toISOString()
+    ).run();
+    return new Response(JSON.stringify({
+      success: true,
+      url: `/api/documents/${key}`,
+      filename: file.name
+    }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (error) {
+    console.error("Document upload error:", error);
+    return new Response(JSON.stringify({ error: "Upload failed" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+}
+var init_serviceRequests = __esm({
+  "src/routes/serviceRequests.ts"() {
+    "use strict";
+    __name(handleServiceRequest, "handleServiceRequest");
+    __name(handleServiceHistory, "handleServiceHistory");
+    __name(handleUpdateServiceRequest, "handleUpdateServiceRequest");
+    __name(handleDocumentUpload, "handleDocumentUpload");
   }
 });
 
@@ -589,6 +817,4085 @@ eroRouter.post("/returns/:id/transmit", async (req, env) => {
   return new Response(JSON.stringify({ success: true }));
 });
 var ero_default = eroRouter;
+
+// src/routes/aiSupport.ts
+var aiSupportRouter = t({ base: "/api/ai-support" });
+function classifyIntent(message) {
+  const msg = message.toLowerCase();
+  if (/(book|schedule|appointment|meet|consultation|set up)/i.test(msg)) {
+    return { intent: "book_appointment", confidence: 0.9 };
+  }
+  if (/(file|tax|return|1040|refund|status|efile)/i.test(msg)) {
+    return { intent: "tax_filing", confidence: 0.85 };
+  }
+  if (/(price|cost|fee|charge|pay|how much)/i.test(msg)) {
+    return { intent: "pricing", confidence: 0.9 };
+  }
+  if (/(speak|talk|agent|human|representative|ero|preparer)/i.test(msg)) {
+    return { intent: "transfer_agent", confidence: 0.95 };
+  }
+  if (/(bookkeep|payroll|small business|quickbooks|accounting)/i.test(msg)) {
+    return { intent: "bookkeeping", confidence: 0.85 };
+  }
+  return { intent: "general_inquiry", confidence: 0.7 };
+}
+__name(classifyIntent, "classifyIntent");
+function generateResponse(intent, userMessage) {
+  const responses = {
+    book_appointment: `I'd be happy to help you schedule an appointment! To book a consultation with one of our tax professionals, I'll need:
+
+1. Your full name
+2. Email address
+3. Phone number
+4. Preferred date and time
+
+You can also book directly at: https://www.rosstaxprepandbookkeeping.com/book
+
+Would you like me to transfer you to an agent to complete the booking?`,
+    tax_filing: `I can help you with tax filing! Ross Tax Prep offers:
+
+\u{1F4CB} **DIY Filing** - $49.99 (IRS MeF certified platform)
+\u{1F468}\u200D\u{1F4BC} **Professional Service** - Starting at $150 (EFIN/PTIN certified preparers)
+\u{1F3E2} **Business Filing** - Custom pricing for partnerships, corporations
+
+We support current year + 5 prior years, with e-file and direct deposit options.
+
+What type of filing are you interested in?`,
+    pricing: `Our pricing is transparent and competitive:
+
+**Individual Returns (1040)**
+\u2022 DIY Platform: $49.99
+\u2022 Professional Preparation: $150-$300 (complexity-based)
+
+**Business Returns**
+\u2022 1120/1120-S: $350-$800
+\u2022 1065 Partnership: $400-$900
+\u2022 1041 Estate/Trust: $300-$600
+
+**Additional Services**
+\u2022 Bookkeeping: Starting at $150/month
+\u2022 Payroll Services: Starting at $100/month
+\u2022 Quarterly Estimated Taxes: $75 per quarter
+
+Would you like a detailed quote for your situation?`,
+    transfer_agent: `I understand you'd like to speak with a live tax professional. Let me connect you with one of our ERO-certified preparers.
+
+To facilitate the transfer, please provide:
+\u2022 Your name
+\u2022 Email address
+\u2022 Phone number
+\u2022 Brief reason for contact
+
+An agent will respond within 15 minutes during business hours (Mon-Fri 9am-6pm CT), or first thing the next business day.`,
+    bookkeeping: `Our bookkeeping and payroll services help small businesses stay compliant and organized:
+
+**Bookkeeping Services**
+\u2022 Monthly financial statements
+\u2022 Expense tracking and categorization
+\u2022 QuickBooks setup and management
+\u2022 Bank reconciliation
+\u2022 Sales tax tracking
+
+**Payroll Services**
+\u2022 Bi-weekly or monthly payroll processing
+\u2022 W-2 and 1099 preparation
+\u2022 Quarterly 941 filings
+\u2022 State unemployment reporting
+
+Pricing starts at $150/month for bookkeeping and $100/month for payroll.
+
+Would you like to schedule a free consultation to discuss your business needs?`,
+    general_inquiry: `Thank you for contacting Ross Tax Prep & Bookkeeping! I'm here to assist you 24/7 with:
+
+\u2705 Appointment scheduling
+\u2705 Tax filing questions
+\u2705 Service pricing
+\u2705 Bookkeeping and payroll
+\u2705 Connection to live agents
+
+How can I help you today?`
+  };
+  return responses[intent] || responses.general_inquiry;
+}
+__name(generateResponse, "generateResponse");
+aiSupportRouter.post("/chat", async (req, env) => {
+  try {
+    const { session_id, message, user_info } = await req.json();
+    if (!message || !message.trim()) {
+      return new Response(JSON.stringify({ error: "Message is required" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+    const sessionId = session_id || v4_default();
+    const { intent, confidence } = classifyIntent(message);
+    const userMsgId = v4_default();
+    await env.DB.prepare(`
+      INSERT INTO ai_chat_messages (id, session_id, role, message, intent, confidence, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+    `).bind(userMsgId, sessionId, "user", message, intent, confidence).run();
+    const aiResponse = generateResponse(intent, message);
+    const aiMsgId = v4_default();
+    await env.DB.prepare(`
+      INSERT INTO ai_chat_messages (id, session_id, role, message, intent, created_at)
+      VALUES (?, ?, ?, ?, ?, datetime('now'))
+    `).bind(aiMsgId, sessionId, "assistant", aiResponse, intent).run();
+    await env.DB.prepare(`
+      INSERT INTO ai_chat_analytics (session_id, intent, confidence, user_message_length, created_at)
+      VALUES (?, ?, ?, ?, datetime('now'))
+    `).bind(sessionId, intent, confidence, message.length).run();
+    return new Response(JSON.stringify({
+      session_id: sessionId,
+      message: aiResponse,
+      intent,
+      confidence,
+      requires_transfer: intent === "transfer_agent"
+    }), {
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (error) {
+    console.error("AI Support chat error:", error);
+    return new Response(JSON.stringify({ error: "Chat processing failed" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+});
+aiSupportRouter.post("/transfer", async (req, env) => {
+  try {
+    const { session_id, name, email, phone, reason } = await req.json();
+    if (!name || !email || !reason) {
+      return new Response(JSON.stringify({ error: "Name, email, and reason required" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+    const transferId = v4_default();
+    await env.DB.prepare(`
+      INSERT INTO ai_transfer_requests (
+        id, session_id, client_name, client_email, client_phone, 
+        reason, status, created_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+    `).bind(transferId, session_id, name, email, phone || null, reason, "pending").run();
+    try {
+      await fetch("https://api.mailchannels.net/tx/v1/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          personalizations: [{
+            to: [{ email: "info@rosstaxprepandbookkeeping.com", name: "ERO Team" }],
+            dkim_domain: "rosstaxprepandbookkeeping.com",
+            dkim_selector: "mailchannels",
+            dkim_private_key: env.DKIM_PRIVATE_KEY
+          }],
+          from: {
+            email: "ai-support@rosstaxprepandbookkeeping.com",
+            name: "AI Support Bot"
+          },
+          subject: `\u{1F916} AI Transfer Request - ${name}`,
+          content: [{
+            type: "text/html",
+            value: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0;">
+                  <h1 style="color: white; margin: 0;">\u{1F916} AI Support Transfer Request</h1>
+                </div>
+                <div style="background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px;">
+                  <h2 style="color: #1f2937;">Client Requesting Agent Connection</h2>
+                  
+                  <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #667eea;">
+                    <p><strong>Name:</strong> ${name}</p>
+                    <p><strong>Email:</strong> <a href="mailto:${email}">${email}</a></p>
+                    ${phone ? `<p><strong>Phone:</strong> ${phone}</p>` : ""}
+                    <p><strong>Reason:</strong> ${reason}</p>
+                    <p><strong>Transfer ID:</strong> ${transferId}</p>
+                  </div>
+                  
+                  <div style="background: #fef3c7; border: 1px solid #fbbf24; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                    <p style="margin: 0; color: #78350f;">
+                      \u26A1 <strong>Action Required:</strong> Client is waiting for agent connection via messaging system.
+                    </p>
+                  </div>
+                  
+                  <a href="https://app.rosstaxprepandbookkeeping.com/ero-hub?transfer=${transferId}" 
+                     style="display: inline-block; background: #667eea; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin-top: 10px;">
+                    Accept Transfer Request
+                  </a>
+                </div>
+              </div>
+            `
+          }]
+        })
+      });
+    } catch (emailError) {
+      console.error("Failed to send transfer notification:", emailError);
+    }
+    await logAudit(env, {
+      action: "ai_transfer_request",
+      entity: "ai_support",
+      entity_id: transferId,
+      user_email: email,
+      details: JSON.stringify({ name, reason })
+    });
+    return new Response(JSON.stringify({
+      success: true,
+      transfer_id: transferId,
+      message: "Transfer request submitted. An agent will connect with you shortly."
+    }), {
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (error) {
+    console.error("Transfer request error:", error);
+    return new Response(JSON.stringify({ error: "Transfer request failed" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+});
+aiSupportRouter.get("/transfers", async (req, env) => {
+  try {
+    const transfers = await env.DB.prepare(`
+      SELECT * FROM ai_transfer_requests 
+      WHERE status = 'pending' 
+      ORDER BY created_at DESC
+      LIMIT 50
+    `).all();
+    return new Response(JSON.stringify(transfers.results), {
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (error) {
+    console.error("Get transfers error:", error);
+    return new Response(JSON.stringify({ error: "Failed to fetch transfers" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+});
+aiSupportRouter.post("/transfers/:id/accept", async (req, env) => {
+  try {
+    const { id } = req.params;
+    const { ero_id } = await req.json();
+    await env.DB.prepare(`
+      UPDATE ai_transfer_requests 
+      SET status = 'accepted', assigned_ero_id = ?, updated_at = datetime('now')
+      WHERE id = ?
+    `).bind(ero_id, id).run();
+    const messageId = v4_default();
+    await env.DB.prepare(`
+      INSERT INTO ero_messages (
+        id, transfer_request_id, sender_id, sender_type, 
+        message, encrypted, created_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+    `).bind(
+      messageId,
+      id,
+      ero_id,
+      "ero",
+      "Hello! I've received your transfer request from our AI assistant. How can I help you today?",
+      false
+    ).run();
+    return new Response(JSON.stringify({
+      success: true,
+      message_id: messageId
+    }), {
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (error) {
+    console.error("Accept transfer error:", error);
+    return new Response(JSON.stringify({ error: "Failed to accept transfer" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+});
+aiSupportRouter.get("/analytics", async (req, env) => {
+  try {
+    const url = new URL(req.url);
+    const days = parseInt(url.searchParams.get("days") || "7");
+    const intentStats = await env.DB.prepare(`
+      SELECT intent, COUNT(*) as count, AVG(confidence) as avg_confidence
+      FROM ai_chat_analytics
+      WHERE created_at >= datetime('now', '-${days} days')
+      GROUP BY intent
+      ORDER BY count DESC
+    `).all();
+    const dailyVolume = await env.DB.prepare(`
+      SELECT DATE(created_at) as date, COUNT(*) as count
+      FROM ai_chat_messages
+      WHERE created_at >= datetime('now', '-${days} days')
+      GROUP BY DATE(created_at)
+      ORDER BY date DESC
+    `).all();
+    const transferStats = await env.DB.prepare(`
+      SELECT 
+        COUNT(*) as total_requests,
+        SUM(CASE WHEN status = 'accepted' THEN 1 ELSE 0 END) as accepted,
+        SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed
+      FROM ai_transfer_requests
+      WHERE created_at >= datetime('now', '-${days} days')
+    `).first();
+    return new Response(JSON.stringify({
+      intent_distribution: intentStats.results,
+      daily_volume: dailyVolume.results,
+      transfer_stats: transferStats
+    }), {
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (error) {
+    console.error("Analytics error:", error);
+    return new Response(JSON.stringify({ error: "Failed to fetch analytics" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+});
+var aiSupport_default = aiSupportRouter;
+
+// src/utils/encryption.ts
+async function getKey(env) {
+  const keyData = new TextEncoder().encode(env.ENCRYPTION_KEY || "change-this-32-character-key!!");
+  return await crypto.subtle.importKey(
+    "raw",
+    keyData.slice(0, 32),
+    // Ensure 32 bytes for AES-256
+    { name: "AES-GCM" },
+    false,
+    ["encrypt", "decrypt"]
+  );
+}
+__name(getKey, "getKey");
+async function encryptPII(text, env) {
+  if (!text) return "";
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await getKey(env);
+  const encoded = new TextEncoder().encode(text);
+  const ciphertext = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv },
+    key,
+    encoded
+  );
+  const combined = new Uint8Array(iv.length + ciphertext.byteLength);
+  combined.set(iv, 0);
+  combined.set(new Uint8Array(ciphertext), iv.length);
+  return btoa(String.fromCharCode(...combined));
+}
+__name(encryptPII, "encryptPII");
+async function decryptPII(encryptedData, env) {
+  if (!encryptedData) return "";
+  try {
+    const combined = Uint8Array.from(atob(encryptedData), (c) => c.charCodeAt(0));
+    const iv = combined.slice(0, 12);
+    const ciphertext = combined.slice(12);
+    const key = await getKey(env);
+    const decrypted = await crypto.subtle.decrypt(
+      { name: "AES-GCM", iv },
+      key,
+      ciphertext
+    );
+    return new TextDecoder().decode(decrypted);
+  } catch (error) {
+    console.error("Decryption failed:", error);
+    return "";
+  }
+}
+__name(decryptPII, "decryptPII");
+
+// src/routes/workflows.ts
+var workflowRouter = t({ base: "/api/workflows" });
+workflowRouter.get("/admin/dashboard", async (req, env) => {
+  try {
+    const userStats = await env.DB.prepare(`
+      SELECT 
+        (SELECT COUNT(*) FROM clients) as total_clients,
+        (SELECT COUNT(*) FROM staff) as total_staff,
+        (SELECT COUNT(*) FROM clients WHERE created_at >= datetime('now', '-30 days')) as new_clients_30d,
+        (SELECT COUNT(*) FROM staff WHERE created_at >= datetime('now', '-30 days')) as new_staff_30d
+    `).first();
+    const returnStats = await env.DB.prepare(`
+      SELECT 
+        COUNT(*) as total_returns,
+        SUM(CASE WHEN status = 'filed' THEN 1 ELSE 0 END) as filed,
+        SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
+        SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approved
+      FROM returns
+      WHERE tax_year = ?
+    `).bind((/* @__PURE__ */ new Date()).getFullYear()).first();
+    const efileStats = await env.DB.prepare(`
+      SELECT 
+        COUNT(*) as total_transmissions,
+        SUM(CASE WHEN status = 'accepted' THEN 1 ELSE 0 END) as accepted,
+        SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected,
+        SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending
+      FROM efile_transmissions
+      WHERE created_at >= datetime('now', '-30 days')
+    `).first();
+    const revenueStats = await env.DB.prepare(`
+      SELECT 
+        SUM(amount) as total_revenue,
+        COUNT(*) as transaction_count
+      FROM payments
+      WHERE status = 'completed'
+        AND created_at >= datetime('now', '-30 days')
+    `).first();
+    const aiStats = await env.DB.prepare(`
+      SELECT 
+        COUNT(*) as total_sessions,
+        COUNT(DISTINCT session_id) as unique_sessions,
+        AVG(confidence) as avg_confidence
+      FROM ai_chat_analytics
+      WHERE created_at >= datetime('now', '-7 days')
+    `).first();
+    return new Response(JSON.stringify({
+      users: userStats,
+      returns: returnStats,
+      efile: efileStats,
+      revenue: revenueStats,
+      ai_support: aiStats
+    }), {
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (error) {
+    console.error("Admin dashboard error:", error);
+    return new Response(JSON.stringify({ error: "Failed to fetch dashboard stats" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+});
+workflowRouter.get("/admin/users", async (req, env) => {
+  try {
+    const url = new URL(req.url);
+    const role = url.searchParams.get("role");
+    const search = url.searchParams.get("search");
+    let clients = [];
+    let staff = [];
+    if (!role || role === "client") {
+      let clientQuery = "SELECT id, name, email, phone, created_at FROM clients";
+      const params = [];
+      if (search) {
+        clientQuery += " WHERE name LIKE ? OR email LIKE ?";
+        params.push(`%${search}%`, `%${search}%`);
+      }
+      clientQuery += " ORDER BY created_at DESC LIMIT 100";
+      const clientResults = await env.DB.prepare(clientQuery).bind(...params).all();
+      clients = clientResults.results;
+    }
+    if (!role || role === "staff") {
+      let staffQuery = "SELECT id, name, email, role, created_at FROM staff";
+      const params = [];
+      if (search) {
+        staffQuery += " WHERE name LIKE ? OR email LIKE ?";
+        params.push(`%${search}%`, `%${search}%`);
+      }
+      staffQuery += " ORDER BY created_at DESC LIMIT 100";
+      const staffResults = await env.DB.prepare(staffQuery).bind(...params).all();
+      staff = staffResults.results;
+    }
+    return new Response(JSON.stringify({
+      clients,
+      staff
+    }), {
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (error) {
+    console.error("List users error:", error);
+    return new Response(JSON.stringify({ error: "Failed to fetch users" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+});
+workflowRouter.post("/admin/broadcast", async (req, env) => {
+  try {
+    const { subject, message, recipients } = await req.json();
+    let emails = [];
+    if (recipients === "all" || recipients === "clients") {
+      const clients = await env.DB.prepare("SELECT email FROM clients").all();
+      emails.push(...clients.results.map((c) => c.email));
+    }
+    if (recipients === "all" || recipients === "staff") {
+      const staff = await env.DB.prepare("SELECT email FROM staff").all();
+      emails.push(...staff.results.map((s) => s.email));
+    }
+    const broadcastId = v4_default();
+    await env.DB.prepare(`
+      INSERT INTO admin_broadcasts (id, subject, message, recipients, sent_count, created_at)
+      VALUES (?, ?, ?, ?, ?, datetime('now'))
+    `).bind(broadcastId, subject, message, recipients, emails.length).run();
+    for (const email of emails) {
+      try {
+        await fetch("https://api.mailchannels.net/tx/v1/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            personalizations: [{
+              to: [{ email }],
+              dkim_domain: "rosstaxprepandbookkeeping.com",
+              dkim_selector: "mailchannels",
+              dkim_private_key: env.DKIM_PRIVATE_KEY
+            }],
+            from: {
+              email: "admin@rosstaxprepandbookkeeping.com",
+              name: "Ross Tax Prep Admin"
+            },
+            subject,
+            content: [{
+              type: "text/html",
+              value: `<div style="font-family: Arial, sans-serif;">${message}</div>`
+            }]
+          })
+        });
+      } catch (emailError) {
+        console.error(`Failed to send to ${email}:`, emailError);
+      }
+    }
+    return new Response(JSON.stringify({
+      success: true,
+      broadcast_id: broadcastId,
+      sent_count: emails.length
+    }), {
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (error) {
+    console.error("Broadcast error:", error);
+    return new Response(JSON.stringify({ error: "Broadcast failed" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+});
+workflowRouter.get("/ero/assigned-returns", async (req, env) => {
+  try {
+    const url = new URL(req.url);
+    const eroId = url.searchParams.get("ero_id");
+    if (!eroId) {
+      return new Response(JSON.stringify({ error: "ERO ID required" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+    const returns = await env.DB.prepare(`
+      SELECT 
+        r.*,
+        c.name as client_name,
+        c.email as client_email,
+        e.status as efile_status,
+        e.ack_code,
+        e.updated_at as efile_updated_at
+      FROM returns r
+      JOIN clients c ON r.client_id = c.id
+      LEFT JOIN efile_transmissions e ON e.return_id = r.id
+      WHERE r.assigned_ero_id = ?
+      ORDER BY r.updated_at DESC
+      LIMIT 50
+    `).bind(eroId).all();
+    return new Response(JSON.stringify(returns.results), {
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (error) {
+    console.error("Get assigned returns error:", error);
+    return new Response(JSON.stringify({ error: "Failed to fetch returns" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+});
+workflowRouter.post("/ero/assign-return", async (req, env) => {
+  try {
+    const { return_id, ero_id } = await req.json();
+    await env.DB.prepare(`
+      UPDATE returns 
+      SET assigned_ero_id = ?, updated_at = datetime('now')
+      WHERE id = ?
+    `).bind(ero_id, return_id).run();
+    await logAudit(env, {
+      action: "assign_return",
+      entity: "return",
+      entity_id: return_id.toString(),
+      user_id: ero_id,
+      details: JSON.stringify({ ero_id })
+    });
+    return new Response(JSON.stringify({ success: true }), {
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (error) {
+    console.error("Assign return error:", error);
+    return new Response(JSON.stringify({ error: "Failed to assign return" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+});
+workflowRouter.get("/client/documents", async (req, env) => {
+  try {
+    const url = new URL(req.url);
+    const clientId = url.searchParams.get("client_id");
+    if (!clientId) {
+      return new Response(JSON.stringify({ error: "Client ID required" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+    const documents = await env.DB.prepare(`
+      SELECT id, filename, content_type, key, uploaded_at
+      FROM documents
+      WHERE client_id = ?
+      ORDER BY uploaded_at DESC
+    `).bind(clientId).all();
+    const docsWithUrls = await Promise.all(
+      documents.results.map(async (doc) => {
+        try {
+          const object = await env.DOCUMENTS_BUCKET.get(doc.key);
+          return {
+            ...doc,
+            size: object?.size || 0,
+            download_url: `/api/workflows/client/documents/${doc.id}/download`
+          };
+        } catch (e) {
+          return {
+            ...doc,
+            size: 0,
+            download_url: null,
+            error: "File not accessible"
+          };
+        }
+      })
+    );
+    return new Response(JSON.stringify(docsWithUrls), {
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (error) {
+    console.error("Get documents error:", error);
+    return new Response(JSON.stringify({ error: "Failed to fetch documents" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+});
+workflowRouter.post("/client/upload-document", async (req, env) => {
+  try {
+    const formData = await req.formData();
+    const file = formData.get("file");
+    const clientId = formData.get("client_id");
+    const returnId = formData.get("return_id");
+    if (!file || !clientId) {
+      return new Response(JSON.stringify({ error: "File and client ID required" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+    const documentId = v4_default();
+    const key = `clients/${clientId}/${documentId}-${file.name}`;
+    await env.DOCUMENTS_BUCKET.put(key, file.stream(), {
+      httpMetadata: {
+        contentType: file.type
+      }
+    });
+    await env.DB.prepare(`
+      INSERT INTO documents (id, client_id, return_id, key, filename, content_type, uploaded_at)
+      VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+    `).bind(documentId, clientId, returnId, key, file.name, file.type).run();
+    await logAudit(env, {
+      action: "upload_document",
+      entity: "document",
+      entity_id: documentId,
+      user_id: parseInt(clientId),
+      details: JSON.stringify({ filename: file.name, size: file.size })
+    });
+    return new Response(JSON.stringify({
+      success: true,
+      document_id: documentId,
+      filename: file.name
+    }), {
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (error) {
+    console.error("Upload document error:", error);
+    return new Response(JSON.stringify({ error: "Upload failed" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+});
+workflowRouter.get("/client/documents/:id/download", async (req, env) => {
+  try {
+    const { id } = req.params;
+    const doc = await env.DB.prepare(`
+      SELECT * FROM documents WHERE id = ?
+    `).bind(id).first();
+    if (!doc) {
+      return new Response("Document not found", { status: 404 });
+    }
+    const object = await env.DOCUMENTS_BUCKET.get(doc.key);
+    if (!object) {
+      return new Response("File not found in storage", { status: 404 });
+    }
+    return new Response(object.body, {
+      headers: {
+        "Content-Type": doc.content_type || "application/octet-stream",
+        "Content-Disposition": `attachment; filename="${doc.filename}"`
+      }
+    });
+  } catch (error) {
+    console.error("Download document error:", error);
+    return new Response("Download failed", { status: 500 });
+  }
+});
+workflowRouter.get("/client/returns", async (req, env) => {
+  try {
+    const url = new URL(req.url);
+    const clientId = url.searchParams.get("client_id");
+    if (!clientId) {
+      return new Response(JSON.stringify({ error: "Client ID required" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+    const returns = await env.DB.prepare(`
+      SELECT 
+        r.*,
+        e.status as efile_status,
+        e.ack_code,
+        e.irs_refund_status,
+        e.refund_amount,
+        e.refund_disbursed_at,
+        s.name as preparer_name
+      FROM returns r
+      LEFT JOIN efile_transmissions e ON e.return_id = r.id
+      LEFT JOIN staff s ON s.id = r.assigned_ero_id
+      WHERE r.client_id = ?
+      ORDER BY r.tax_year DESC
+    `).bind(clientId).all();
+    return new Response(JSON.stringify(returns.results), {
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (error) {
+    console.error("Get client returns error:", error);
+    return new Response(JSON.stringify({ error: "Failed to fetch returns" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+});
+workflowRouter.post("/intake", async (req, env) => {
+  try {
+    const intakeData = await req.json();
+    const intakeId = v4_default();
+    const encryptedData = await encryptPII(JSON.stringify(intakeData), env);
+    await env.DB.prepare(`
+      INSERT INTO intake_forms (
+        id, client_name, client_email, client_phone, 
+        encrypted_data, source, status, created_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+    `).bind(
+      intakeId,
+      intakeData.name,
+      intakeData.email,
+      intakeData.phone || null,
+      encryptedData,
+      intakeData.source || "web",
+      "pending"
+    ).run();
+    try {
+      await fetch("https://api.mailchannels.net/tx/v1/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          personalizations: [{
+            to: [{ email: "info@rosstaxprepandbookkeeping.com", name: "Intake Team" }],
+            dkim_domain: "rosstaxprepandbookkeeping.com",
+            dkim_selector: "mailchannels",
+            dkim_private_key: env.DKIM_PRIVATE_KEY
+          }],
+          from: {
+            email: "intake@rosstaxprepandbookkeeping.com",
+            name: "Intake System"
+          },
+          subject: `\u{1F4CB} New Intake Form - ${intakeData.name}`,
+          content: [{
+            type: "text/html",
+            value: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <div style="background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%); padding: 30px; border-radius: 10px 10px 0 0;">
+                  <h1 style="color: white; margin: 0;">\u{1F4CB} New Intake Form Submission</h1>
+                </div>
+                <div style="background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px;">
+                  <h2 style="color: #1f2937;">Client Information</h2>
+                  
+                  <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                    <p><strong>Name:</strong> ${intakeData.name}</p>
+                    <p><strong>Email:</strong> <a href="mailto:${intakeData.email}">${intakeData.email}</a></p>
+                    ${intakeData.phone ? `<p><strong>Phone:</strong> ${intakeData.phone}</p>` : ""}
+                    ${intakeData.service ? `<p><strong>Service Requested:</strong> ${intakeData.service}</p>` : ""}
+                    ${intakeData.message ? `<p><strong>Message:</strong><br/>${intakeData.message}</p>` : ""}
+                    <p><strong>Intake ID:</strong> ${intakeId}</p>
+                  </div>
+                  
+                  <a href="https://app.rosstaxprepandbookkeeping.com/admin/intakes/${intakeId}" 
+                     style="display: inline-block; background: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">
+                    View Full Intake Form
+                  </a>
+                </div>
+              </div>
+            `
+          }]
+        })
+      });
+    } catch (emailError) {
+      console.error("Failed to send intake notification:", emailError);
+    }
+    await logAudit(env, {
+      action: "intake_submitted",
+      entity: "intake",
+      entity_id: intakeId,
+      user_email: intakeData.email
+    });
+    return new Response(JSON.stringify({
+      success: true,
+      intake_id: intakeId,
+      message: "Intake form submitted successfully. Our team will contact you within 24 hours."
+    }), {
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (error) {
+    console.error("Intake submission error:", error);
+    return new Response(JSON.stringify({ error: "Intake submission failed" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+});
+var workflows_default = workflowRouter;
+
+// src/routes/invoicing.ts
+var router = t();
+router.get("/invoices", async (req, env) => {
+  try {
+    const user = req.user;
+    if (!user || user.role !== "admin" && user.role !== "staff") {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+    }
+    const url = new URL(req.url);
+    const status = url.searchParams.get("status");
+    const clientId = url.searchParams.get("client_id");
+    const limit = parseInt(url.searchParams.get("limit") || "50");
+    const offset = parseInt(url.searchParams.get("offset") || "0");
+    let sql = "SELECT * FROM invoices WHERE 1=1";
+    const params = [];
+    if (status && status !== "all") {
+      sql += " AND status = ?";
+      params.push(status);
+    }
+    if (clientId) {
+      sql += " AND client_id = ?";
+      params.push(clientId);
+    }
+    sql += " ORDER BY created_at DESC LIMIT ? OFFSET ?";
+    params.push(limit, offset);
+    const result = await env.DB.prepare(sql).bind(...params).all();
+    const invoices = (result.results || []).map((inv) => ({
+      ...inv,
+      items: inv.items_json ? JSON.parse(inv.items_json) : []
+    }));
+    await logAudit(env, {
+      action: "invoices_list",
+      entity: "invoice",
+      user_id: user.id,
+      user_role: user.role,
+      user_email: user.email,
+      details: JSON.stringify({ status, clientId, count: invoices.length })
+    }, req);
+    return new Response(JSON.stringify({
+      invoices,
+      total: result.results.length,
+      limit,
+      offset
+    }), {
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (error) {
+    console.error("Error listing invoices:", error);
+    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  }
+});
+router.get("/invoices/:id", async (req, env) => {
+  try {
+    const user = req.user;
+    if (!user || user.role !== "admin" && user.role !== "staff") {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+    }
+    const invoiceId = req.params.id;
+    const invoice = await env.DB.prepare(
+      "SELECT * FROM invoices WHERE id = ?"
+    ).bind(invoiceId).first();
+    if (!invoice) {
+      return new Response(JSON.stringify({ error: "Invoice not found" }), { status: 404 });
+    }
+    const items = invoice.items_json ? JSON.parse(invoice.items_json) : [];
+    await logAudit(env, {
+      action: "invoice_view",
+      entity: "invoice",
+      entity_id: invoiceId,
+      user_id: user.id,
+      user_role: user.role,
+      user_email: user.email
+    }, req);
+    return new Response(JSON.stringify({ ...invoice, items }), {
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (error) {
+    console.error("Error getting invoice:", error);
+    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  }
+});
+router.post("/invoices", async (req, env) => {
+  try {
+    const user = req.user;
+    if (!user || user.role !== "admin") {
+      return new Response(JSON.stringify({ error: "Admin only" }), { status: 403 });
+    }
+    const body = await req.json();
+    const {
+      client_id,
+      issue_date,
+      due_date,
+      items,
+      tax_rate = 0,
+      notes = ""
+    } = body;
+    if (!client_id || !issue_date || !items || items.length === 0) {
+      return new Response(JSON.stringify({ error: "Missing required fields" }), { status: 400 });
+    }
+    const subtotal = items.reduce((sum, item) => sum + item.unit_price * item.quantity, 0);
+    const taxAmount = subtotal * (tax_rate / 100);
+    const total = subtotal + taxAmount;
+    const datePrefix = new Date(issue_date).toISOString().slice(0, 7).replace("-", "");
+    const randomSuffix = Math.random().toString(36).slice(2, 6).toUpperCase();
+    const invoiceNumber = `INV-${datePrefix}-${randomSuffix}`;
+    const id = v4_default();
+    const now = (/* @__PURE__ */ new Date()).toISOString();
+    await env.DB.prepare(`
+      INSERT INTO invoices (
+        id, admin_id, client_id, invoice_number, issue_date, due_date,
+        items_json, subtotal, tax_rate, tax_amount, total, notes,
+        status, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      id,
+      user.id,
+      client_id,
+      invoiceNumber,
+      issue_date,
+      due_date,
+      JSON.stringify(items),
+      subtotal,
+      tax_rate,
+      taxAmount,
+      total,
+      notes,
+      "draft",
+      now,
+      now
+    ).run();
+    await logAudit(env, {
+      action: "invoice_create",
+      entity: "invoice",
+      entity_id: id,
+      user_id: user.id,
+      user_role: user.role,
+      user_email: user.email,
+      details: JSON.stringify({ invoiceNumber, total, clientId: client_id })
+    }, req);
+    return new Response(JSON.stringify({
+      id,
+      invoice_number: invoiceNumber,
+      total,
+      status: "draft"
+    }), {
+      status: 201,
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (error) {
+    console.error("Error creating invoice:", error);
+    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  }
+});
+router.patch("/invoices/:id", async (req, env) => {
+  try {
+    const user = req.user;
+    if (!user || user.role !== "admin") {
+      return new Response(JSON.stringify({ error: "Admin only" }), { status: 403 });
+    }
+    const invoiceId = req.params.id;
+    const body = await req.json();
+    const invoice = await env.DB.prepare(
+      "SELECT status FROM invoices WHERE id = ?"
+    ).bind(invoiceId).first();
+    if (!invoice) {
+      return new Response(JSON.stringify({ error: "Invoice not found" }), { status: 404 });
+    }
+    if (invoice.status !== "draft") {
+      return new Response(JSON.stringify({ error: "Can only edit draft invoices" }), { status: 400 });
+    }
+    const updates = [];
+    const params = [];
+    if (body.items) {
+      const subtotal = body.items.reduce((sum, item) => sum + item.unit_price * item.quantity, 0);
+      const taxAmount = subtotal * ((body.tax_rate || 0) / 100);
+      const total = subtotal + taxAmount;
+      updates.push("items_json = ?, subtotal = ?, tax_amount = ?, total = ?");
+      params.push(JSON.stringify(body.items), subtotal, taxAmount, total);
+    }
+    if (body.tax_rate !== void 0) {
+      if (!body.items) {
+        updates.push("tax_rate = ?");
+        params.push(body.tax_rate);
+      }
+    }
+    if (body.due_date) {
+      updates.push("due_date = ?");
+      params.push(body.due_date);
+    }
+    if (body.notes) {
+      updates.push("notes = ?");
+      params.push(body.notes);
+    }
+    updates.push("updated_at = ?");
+    params.push((/* @__PURE__ */ new Date()).toISOString());
+    params.push(invoiceId);
+    await env.DB.prepare(`
+      UPDATE invoices SET ${updates.join(", ")} WHERE id = ?
+    `).bind(...params).run();
+    await logAudit(env, {
+      action: "invoice_update",
+      entity: "invoice",
+      entity_id: invoiceId,
+      user_id: user.id,
+      user_role: user.role,
+      user_email: user.email
+    }, req);
+    return new Response(JSON.stringify({ success: true }), {
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (error) {
+    console.error("Error updating invoice:", error);
+    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  }
+});
+router.post("/invoices/:id/send", async (req, env) => {
+  try {
+    const user = req.user;
+    if (!user || user.role !== "admin") {
+      return new Response(JSON.stringify({ error: "Admin only" }), { status: 403 });
+    }
+    const invoiceId = req.params.id;
+    const invoice = await env.DB.prepare(
+      "SELECT i.*, c.email as client_email, c.name as client_name FROM invoices i JOIN clients c ON i.client_id = c.id WHERE i.id = ?"
+    ).bind(invoiceId).first();
+    if (!invoice) {
+      return new Response(JSON.stringify({ error: "Invoice not found" }), { status: 404 });
+    }
+    if (!invoice.client_email) {
+      return new Response(JSON.stringify({ error: "Client email not found" }), { status: 400 });
+    }
+    const items = invoice.items_json ? JSON.parse(invoice.items_json) : [];
+    const invoiceHtml = `
+      <h1>Invoice ${invoice.invoice_number}</h1>
+      <p>Due: ${invoice.due_date}</p>
+      <table border="1">
+        <tr><th>Description</th><th>Qty</th><th>Price</th><th>Total</th></tr>
+        ${items.map((item) => `
+          <tr>
+            <td>${item.description}</td>
+            <td>${item.quantity}</td>
+            <td>$${item.unit_price.toFixed(2)}</td>
+            <td>$${item.line_total.toFixed(2)}</td>
+          </tr>
+        `).join("")}
+      </table>
+      <p>Subtotal: $${invoice.subtotal.toFixed(2)}</p>
+      <p>Tax (${invoice.tax_rate}%): $${invoice.tax_amount.toFixed(2)}</p>
+      <h2>Total: $${invoice.total.toFixed(2)}</h2>
+      ${invoice.notes ? `<p>Notes: ${invoice.notes}</p>` : ""}
+    `;
+    const emailResponse = await fetch("https://api.mailchannels.net/tx/v1/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        personalizations: [
+          {
+            to: [{ email: invoice.client_email, name: invoice.client_name }],
+            dkim_domain: "rosstaxprepandbookkeeping.com"
+          }
+        ],
+        from: {
+          email: "invoices@rosstaxprepandbookkeeping.com",
+          name: "Ross Tax Prep - Invoicing"
+        },
+        subject: `Invoice ${invoice.invoice_number} from Ross Tax Prep`,
+        html: invoiceHtml
+      })
+    });
+    if (!emailResponse.ok) {
+      throw new Error("Failed to send email");
+    }
+    const now = (/* @__PURE__ */ new Date()).toISOString();
+    await env.DB.prepare(
+      "UPDATE invoices SET status = ?, sent_at = ?, updated_at = ? WHERE id = ?"
+    ).bind("sent", now, now, invoiceId).run();
+    await logAudit(env, {
+      action: "invoice_send",
+      entity: "invoice",
+      entity_id: invoiceId,
+      user_id: user.id,
+      user_role: user.role,
+      user_email: user.email,
+      details: JSON.stringify({ clientEmail: invoice.client_email })
+    }, req);
+    return new Response(JSON.stringify({ success: true, sent_at: now }), {
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (error) {
+    console.error("Error sending invoice:", error);
+    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  }
+});
+router.post("/invoices/:id/mark-paid", async (req, env) => {
+  try {
+    const user = req.user;
+    if (!user || user.role !== "admin") {
+      return new Response(JSON.stringify({ error: "Admin only" }), { status: 403 });
+    }
+    const invoiceId = req.params.id;
+    const now = (/* @__PURE__ */ new Date()).toISOString();
+    await env.DB.prepare(
+      "UPDATE invoices SET status = ?, paid_at = ?, updated_at = ? WHERE id = ?"
+    ).bind("paid", now, now, invoiceId).run();
+    await logAudit(env, {
+      action: "invoice_paid",
+      entity: "invoice",
+      entity_id: invoiceId,
+      user_id: user.id,
+      user_role: user.role,
+      user_email: user.email
+    }, req);
+    return new Response(JSON.stringify({ success: true, paid_at: now }), {
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (error) {
+    console.error("Error marking invoice paid:", error);
+    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  }
+});
+router.delete("/invoices/:id", async (req, env) => {
+  try {
+    const user = req.user;
+    if (!user || user.role !== "admin") {
+      return new Response(JSON.stringify({ error: "Admin only" }), { status: 403 });
+    }
+    const invoiceId = req.params.id;
+    await env.DB.prepare(
+      "UPDATE invoices SET status = ?, updated_at = ? WHERE id = ?"
+    ).bind("cancelled", (/* @__PURE__ */ new Date()).toISOString(), invoiceId).run();
+    await logAudit(env, {
+      action: "invoice_delete",
+      entity: "invoice",
+      entity_id: invoiceId,
+      user_id: user.id,
+      user_role: user.role,
+      user_email: user.email
+    }, req);
+    return new Response(JSON.stringify({ success: true }), {
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (error) {
+    console.error("Error deleting invoice:", error);
+    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  }
+});
+var invoicing_default = router;
+
+// src/bankProducts/santaBarbaraTPG.ts
+var SantaBarbaraTPGClient = class {
+  static {
+    __name(this, "SantaBarbaraTPGClient");
+  }
+  config;
+  env;
+  constructor(env) {
+    this.env = env;
+    this.config = {
+      apiKey: env.SBTPG_API_KEY || "test_key",
+      environment: env.SBTPG_ENVIRONMENT === "production" ? "production" : "sandbox",
+      baseUrl: env.SBTPG_ENVIRONMENT === "production" ? "https://api.sbtpg.com/v2" : "https://sandbox.sbtpg.com/v2",
+      timeout: 3e4
+    };
+  }
+  /**
+   * Create Refund Transfer (RT) transaction
+   */
+  async createRefundTransfer(request) {
+    console.log("[SBTPG] Creating Refund Transfer:", request.product_id);
+    const fees = this.calculateFees(request.product_id, request.refund_amount);
+    if (request.refund_amount < fees.requirements.min_refund_amount) {
+      throw new Error(`Refund amount must be at least $${fees.requirements.min_refund_amount}`);
+    }
+    const transaction = {
+      id: v4_default(),
+      client_id: request.client_id,
+      return_id: request.return_id,
+      product_type: "RT",
+      product_id: request.product_id,
+      refund_amount: request.refund_amount,
+      fee_amount: fees.total_fee,
+      net_amount: request.refund_amount - fees.total_fee,
+      status: "pending",
+      created_at: (/* @__PURE__ */ new Date()).toISOString(),
+      updated_at: (/* @__PURE__ */ new Date()).toISOString()
+    };
+    if (!this.config.apiKey || this.config.apiKey === "test_key") {
+      console.log("[SBTPG] Test mode - simulating RT approval");
+      transaction.status = "approved";
+      transaction.approval_code = `RT-${Date.now()}`;
+      transaction.sbtpg_transaction_id = `SBTPG-${v4_default().slice(0, 8)}`;
+      await this.storeTransaction(transaction);
+      return transaction;
+    }
+    try {
+      const response = await this.callAPI("/refund-transfer", "POST", {
+        taxpayer_ssn: request.taxpayer_ssn,
+        taxpayer_name: request.taxpayer_name,
+        refund_amount: request.refund_amount,
+        product_id: request.product_id,
+        routing_number: request.routing_number,
+        account_number: request.account_number,
+        account_type: request.account_type || "checking"
+      });
+      if (response.success) {
+        transaction.status = "approved";
+        transaction.sbtpg_transaction_id = response.transaction_id;
+        transaction.approval_code = response.approval_code;
+      } else {
+        transaction.status = "rejected";
+        transaction.error_message = response.message || "Transaction rejected";
+      }
+      await this.storeTransaction(transaction);
+      return transaction;
+    } catch (error) {
+      console.error("[SBTPG] RT creation failed:", error);
+      transaction.status = "rejected";
+      transaction.error_message = error.message;
+      await this.storeTransaction(transaction);
+      throw error;
+    }
+  }
+  /**
+   * Create Refund Anticipation Loan (RAL)
+   */
+  async createRefundAdvance(request) {
+    console.log("[SBTPG] Creating Refund Advance Loan:", request.product_id);
+    if (!request.credit_check_consent) {
+      throw new Error("Credit check consent is required for RAL products");
+    }
+    const fees = this.calculateFees(request.product_id, request.requested_advance);
+    if (request.requested_advance < fees.requirements.min_refund_amount) {
+      throw new Error(`Advance amount must be at least $${fees.requirements.min_refund_amount}`);
+    }
+    if (fees.requirements.max_refund_amount && request.requested_advance > fees.requirements.max_refund_amount) {
+      throw new Error(`Advance amount cannot exceed $${fees.requirements.max_refund_amount}`);
+    }
+    const transaction = {
+      id: v4_default(),
+      client_id: request.client_id,
+      return_id: request.return_id,
+      product_type: "RAL",
+      product_id: request.product_id,
+      refund_amount: request.requested_advance,
+      fee_amount: fees.total_fee,
+      net_amount: request.requested_advance - fees.total_fee,
+      status: "pending",
+      created_at: (/* @__PURE__ */ new Date()).toISOString(),
+      updated_at: (/* @__PURE__ */ new Date()).toISOString()
+    };
+    if (!this.config.apiKey || this.config.apiKey === "test_key") {
+      console.log("[SBTPG] Test mode - simulating RAL approval");
+      transaction.status = "approved";
+      transaction.approval_code = `RAL-${Date.now()}`;
+      transaction.sbtpg_transaction_id = `SBTPG-${v4_default().slice(0, 8)}`;
+      await this.storeTransaction(transaction);
+      return transaction;
+    }
+    try {
+      const response = await this.callAPI("/refund-advance", "POST", {
+        taxpayer_ssn: request.taxpayer_ssn,
+        taxpayer_name: request.taxpayer_name,
+        estimated_refund: request.estimated_refund,
+        requested_advance: request.requested_advance,
+        eitc_amount: request.eitc_amount,
+        product_id: request.product_id,
+        credit_check_consent: true
+      });
+      if (response.success) {
+        transaction.status = "approved";
+        transaction.sbtpg_transaction_id = response.transaction_id;
+        transaction.approval_code = response.approval_code;
+      } else {
+        transaction.status = "rejected";
+        transaction.error_message = response.message || "Loan application rejected";
+      }
+      await this.storeTransaction(transaction);
+      return transaction;
+    } catch (error) {
+      console.error("[SBTPG] RAL creation failed:", error);
+      transaction.status = "rejected";
+      transaction.error_message = error.message;
+      await this.storeTransaction(transaction);
+      throw error;
+    }
+  }
+  /**
+   * Check transaction status
+   */
+  async getTransactionStatus(transactionId) {
+    const row = await this.env.DB.prepare(
+      "SELECT * FROM bank_product_transactions WHERE id = ? OR sbtpg_transaction_id = ?"
+    ).bind(transactionId, transactionId).first();
+    if (!row) return null;
+    if (row.status === "pending" && row.sbtpg_transaction_id && this.config.apiKey !== "test_key") {
+      try {
+        const response = await this.callAPI(`/transactions/${row.sbtpg_transaction_id}`, "GET");
+        if (response.status) {
+          row.status = response.status;
+          row.updated_at = (/* @__PURE__ */ new Date()).toISOString();
+          await this.updateTransaction(row);
+        }
+      } catch (error) {
+        console.error("[SBTPG] Status check failed:", error);
+      }
+    }
+    return row;
+  }
+  /**
+   * Check product eligibility
+   */
+  async checkEligibility(refundAmount, eitcAmount = 0, productType) {
+    const eligibleProducts = [];
+    if (productType === "RT" || productType === "EITC_Advance") {
+      const rtFees = this.calculateFees("RT-2025", refundAmount);
+      if (refundAmount >= rtFees.requirements.min_refund_amount) {
+        eligibleProducts.push({
+          eligible: true,
+          product_id: "RT-2025",
+          product_name: "Refund Transfer",
+          estimated_fee: rtFees.total_fee,
+          net_amount: refundAmount - rtFees.total_fee
+        });
+      }
+    }
+    if (productType === "RAL" && refundAmount >= 500) {
+      const ralFees = this.calculateFees("RAL-2025", refundAmount);
+      if (refundAmount >= ralFees.requirements.min_refund_amount) {
+        eligibleProducts.push({
+          eligible: true,
+          product_id: "RAL-2025",
+          product_name: "Refund Anticipation Loan",
+          estimated_fee: ralFees.total_fee,
+          net_amount: refundAmount - ralFees.total_fee,
+          reasons: ["Credit check required"]
+        });
+      }
+    }
+    if (eitcAmount > 0 && eitcAmount >= 300) {
+      const eitcFees = this.calculateFees("EITC-ADV-2025", eitcAmount);
+      eligibleProducts.push({
+        eligible: true,
+        product_id: "EITC-ADV-2025",
+        product_name: "EITC Advance",
+        estimated_fee: eitcFees.total_fee,
+        net_amount: eitcAmount - eitcFees.total_fee
+      });
+    }
+    return eligibleProducts;
+  }
+  /**
+   * Calculate fees for a product
+   */
+  calculateFees(productId, amount) {
+    const products = {
+      "RT-2025": {
+        base_fee: 39.95,
+        percentage_fee: 0,
+        max_fee: 59.95,
+        requirements: { min_refund_amount: 300 }
+      },
+      "RAL-2025": {
+        base_fee: 0,
+        percentage_fee: 10.5,
+        max_fee: 500,
+        requirements: { min_refund_amount: 500, max_refund_amount: 6e3 }
+      },
+      "EITC-ADV-2025": {
+        base_fee: 0,
+        percentage_fee: 5,
+        max_fee: 100,
+        requirements: { min_refund_amount: 300, max_refund_amount: 2e3 }
+      },
+      "DD-2025": {
+        base_fee: 0,
+        percentage_fee: 0,
+        max_fee: 0,
+        requirements: { min_refund_amount: 0 }
+      }
+    };
+    const product = products[productId] || products["RT-2025"];
+    let base = product.base_fee;
+    let percentage = amount * (product.percentage_fee / 100);
+    let total = base + percentage;
+    if (product.max_fee && total > product.max_fee) {
+      total = product.max_fee;
+    }
+    return {
+      total_fee: Math.round(total * 100) / 100,
+      base_fee: base,
+      percentage_fee: percentage,
+      requirements: product.requirements
+    };
+  }
+  /**
+   * Make API call to SBTPG
+   */
+  async callAPI(endpoint, method, body) {
+    const url = `${this.config.baseUrl}${endpoint}`;
+    try {
+      const response = await fetch(url, {
+        method,
+        headers: {
+          "Authorization": `Bearer ${this.config.apiKey}`,
+          "Content-Type": "application/json",
+          "X-API-Version": "v2"
+        },
+        body: body ? JSON.stringify(body) : void 0,
+        signal: AbortSignal.timeout(this.config.timeout)
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        return {
+          success: false,
+          message: error.message || `HTTP ${response.status}`,
+          errors: error.errors
+        };
+      }
+      const data = await response.json();
+      return {
+        success: true,
+        ...data
+      };
+    } catch (error) {
+      console.error("[SBTPG] API call failed:", error);
+      return {
+        success: false,
+        message: error.message || "API call failed"
+      };
+    }
+  }
+  /**
+   * Store transaction in database
+   */
+  async storeTransaction(transaction) {
+    if (!this.env.DB) {
+      console.warn("[SBTPG] No database connection - skipping storage");
+      return;
+    }
+    try {
+      await this.env.DB.prepare(`
+        INSERT INTO bank_product_transactions (
+          id, client_id, return_id, product_type, product_id,
+          refund_amount, fee_amount, net_amount, status,
+          sbtpg_transaction_id, approval_code, error_message,
+          created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).bind(
+        transaction.id,
+        transaction.client_id,
+        transaction.return_id,
+        transaction.product_type,
+        transaction.product_id,
+        transaction.refund_amount,
+        transaction.fee_amount,
+        transaction.net_amount,
+        transaction.status,
+        transaction.sbtpg_transaction_id || null,
+        transaction.approval_code || null,
+        transaction.error_message || null,
+        transaction.created_at,
+        transaction.updated_at
+      ).run();
+    } catch (error) {
+      console.error("[SBTPG] Failed to store transaction:", error);
+      throw error;
+    }
+  }
+  /**
+   * Update transaction in database
+   */
+  async updateTransaction(transaction) {
+    if (!this.env.DB) return;
+    try {
+      await this.env.DB.prepare(`
+        UPDATE bank_product_transactions 
+        SET status = ?, 
+            sbtpg_transaction_id = ?,
+            approval_code = ?,
+            error_message = ?,
+            updated_at = ?
+        WHERE id = ?
+      `).bind(
+        transaction.status,
+        transaction.sbtpg_transaction_id || null,
+        transaction.approval_code || null,
+        transaction.error_message || null,
+        transaction.updated_at,
+        transaction.id
+      ).run();
+    } catch (error) {
+      console.error("[SBTPG] Failed to update transaction:", error);
+    }
+  }
+  /**
+   * Get client info for debugging
+   */
+  getInfo() {
+    return {
+      provider: "Santa Barbara TPG",
+      environment: this.config.environment,
+      baseUrl: this.config.baseUrl,
+      hasApiKey: !!this.config.apiKey && this.config.apiKey !== "test_key",
+      version: "v2"
+    };
+  }
+};
+function createSBTPGClient(env) {
+  return new SantaBarbaraTPGClient(env);
+}
+__name(createSBTPGClient, "createSBTPGClient");
+
+// src/routes/bankProducts.ts
+var router2 = t({ base: "/api/bank-products" });
+router2.get("/eligibility", async (req, env) => {
+  const url = new URL(req.url);
+  const refundAmount = parseFloat(url.searchParams.get("refundAmount") || "0");
+  const eitcAmount = parseFloat(url.searchParams.get("eitcAmount") || "0");
+  const productType = url.searchParams.get("productType") || "RT";
+  if (refundAmount <= 0) {
+    return new Response(JSON.stringify({ error: "Valid refund amount required" }), { status: 400 });
+  }
+  const client = createSBTPGClient(env);
+  const eligibleProducts = await client.checkEligibility(refundAmount, eitcAmount, productType);
+  return new Response(JSON.stringify({
+    refund_amount: refundAmount,
+    eitc_amount: eitcAmount,
+    eligible_products: eligibleProducts
+  }), {
+    headers: { "Content-Type": "application/json" }
+  });
+});
+router2.post("/refund-transfer", async (req, env) => {
+  try {
+    const body = await req.json();
+    if (!body.client_id || !body.return_id || !body.refund_amount) {
+      return new Response(JSON.stringify({
+        error: "Missing required fields: client_id, return_id, refund_amount"
+      }), { status: 400 });
+    }
+    if (!body.taxpayer_ssn || !body.taxpayer_name) {
+      return new Response(JSON.stringify({
+        error: "Missing taxpayer information: taxpayer_ssn, taxpayer_name"
+      }), { status: 400 });
+    }
+    const client = createSBTPGClient(env);
+    const transaction = await client.createRefundTransfer({
+      client_id: body.client_id,
+      return_id: body.return_id,
+      taxpayer_ssn: body.taxpayer_ssn,
+      taxpayer_name: body.taxpayer_name,
+      refund_amount: body.refund_amount,
+      routing_number: body.routing_number,
+      account_number: body.account_number,
+      account_type: body.account_type,
+      product_id: body.product_id || "RT-2025"
+    });
+    await env.DB.prepare(`
+      INSERT INTO audit_log (id, action, entity, entity_id, user_id, details, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+    `).bind(
+      v4_default(),
+      "create",
+      "bank_product_transaction",
+      transaction.id,
+      body.client_id,
+      JSON.stringify({ product_type: "RT", amount: body.refund_amount })
+    ).run();
+    return new Response(JSON.stringify({
+      success: true,
+      transaction
+    }), {
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (error) {
+    console.error("[Bank Products] RT creation failed:", error);
+    return new Response(JSON.stringify({
+      error: error.message || "Failed to create refund transfer"
+    }), { status: 500 });
+  }
+});
+router2.post("/refund-advance", async (req, env) => {
+  try {
+    const body = await req.json();
+    if (!body.client_id || !body.return_id || !body.estimated_refund || !body.requested_advance) {
+      return new Response(JSON.stringify({
+        error: "Missing required fields"
+      }), { status: 400 });
+    }
+    if (!body.taxpayer_ssn || !body.taxpayer_name) {
+      return new Response(JSON.stringify({
+        error: "Missing taxpayer information"
+      }), { status: 400 });
+    }
+    if (!body.credit_check_consent) {
+      return new Response(JSON.stringify({
+        error: "Credit check consent is required for refund advance loans"
+      }), { status: 400 });
+    }
+    const client = createSBTPGClient(env);
+    const transaction = await client.createRefundAdvance({
+      client_id: body.client_id,
+      return_id: body.return_id,
+      taxpayer_ssn: body.taxpayer_ssn,
+      taxpayer_name: body.taxpayer_name,
+      estimated_refund: body.estimated_refund,
+      requested_advance: body.requested_advance,
+      eitc_amount: body.eitc_amount,
+      credit_check_consent: body.credit_check_consent,
+      product_id: body.product_id || "RAL-2025"
+    });
+    await env.DB.prepare(`
+      INSERT INTO audit_log (id, action, entity, entity_id, user_id, details, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+    `).bind(
+      v4_default(),
+      "create",
+      "bank_product_transaction",
+      transaction.id,
+      body.client_id,
+      JSON.stringify({ product_type: "RAL", amount: body.requested_advance })
+    ).run();
+    return new Response(JSON.stringify({
+      success: true,
+      transaction
+    }), {
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (error) {
+    console.error("[Bank Products] RAL creation failed:", error);
+    return new Response(JSON.stringify({
+      error: error.message || "Failed to create refund advance"
+    }), { status: 500 });
+  }
+});
+router2.get("/transactions/:id", async (req, env) => {
+  const id = req.params.id;
+  const client = createSBTPGClient(env);
+  const transaction = await client.getTransactionStatus(id);
+  if (!transaction) {
+    return new Response(JSON.stringify({ error: "Transaction not found" }), { status: 404 });
+  }
+  return new Response(JSON.stringify(transaction), {
+    headers: { "Content-Type": "application/json" }
+  });
+});
+router2.get("/transactions", async (req, env) => {
+  const url = new URL(req.url);
+  const clientId = url.searchParams.get("client_id");
+  const returnId = url.searchParams.get("return_id");
+  const status = url.searchParams.get("status");
+  let query = "SELECT * FROM bank_product_transactions WHERE 1=1";
+  const params = [];
+  if (clientId) {
+    query += " AND client_id = ?";
+    params.push(parseInt(clientId));
+  }
+  if (returnId) {
+    query += " AND return_id = ?";
+    params.push(parseInt(returnId));
+  }
+  if (status) {
+    query += " AND status = ?";
+    params.push(status);
+  }
+  query += " ORDER BY created_at DESC LIMIT 100";
+  const rows = await env.DB.prepare(query).bind(...params).all();
+  return new Response(JSON.stringify({
+    transactions: rows.results
+  }), {
+    headers: { "Content-Type": "application/json" }
+  });
+});
+router2.get("/config", async (req, env) => {
+  const url = new URL(req.url);
+  const taxYear = url.searchParams.get("tax_year") || "2025";
+  const rows = await env.DB.prepare(
+    "SELECT * FROM bank_product_config WHERE tax_year = ? AND active = 1 ORDER BY product_type"
+  ).bind(parseInt(taxYear)).all();
+  return new Response(JSON.stringify({
+    tax_year: taxYear,
+    products: rows.results
+  }), {
+    headers: { "Content-Type": "application/json" }
+  });
+});
+router2.post("/calculate-fees", async (req, env) => {
+  try {
+    const body = await req.json();
+    if (!body.product_id || !body.amount) {
+      return new Response(JSON.stringify({
+        error: "Missing required fields: product_id, amount"
+      }), { status: 400 });
+    }
+    const product = await env.DB.prepare(
+      "SELECT * FROM bank_product_config WHERE product_id = ? AND active = 1"
+    ).bind(body.product_id).first();
+    if (!product) {
+      return new Response(JSON.stringify({
+        error: "Product not found or inactive"
+      }), { status: 404 });
+    }
+    const amount = parseFloat(body.amount);
+    let baseFee = product.base_fee || 0;
+    let percentageFee = amount * ((product.percentage_fee || 0) / 100);
+    let totalFee = baseFee + percentageFee;
+    if (product.max_fee && totalFee > product.max_fee) {
+      totalFee = product.max_fee;
+    }
+    totalFee = Math.round(totalFee * 100) / 100;
+    return new Response(JSON.stringify({
+      product_id: body.product_id,
+      product_name: product.product_name,
+      refund_amount: amount,
+      base_fee: baseFee,
+      percentage_fee: percentageFee,
+      total_fee: totalFee,
+      net_amount: amount - totalFee,
+      requirements: {
+        min_refund_amount: product.min_refund_amount,
+        max_refund_amount: product.max_refund_amount,
+        eitc_required: product.eitc_required === 1,
+        credit_check_required: product.credit_check_required === 1
+      }
+    }), {
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (error) {
+    console.error("[Bank Products] Fee calculation failed:", error);
+    return new Response(JSON.stringify({
+      error: error.message || "Failed to calculate fees"
+    }), { status: 500 });
+  }
+});
+router2.post("/webhook", async (req, env) => {
+  try {
+    const body = await req.json();
+    const signature = req.headers.get("X-SBTPG-Signature");
+    if (!signature) {
+      return new Response(JSON.stringify({ error: "Missing signature" }), { status: 401 });
+    }
+    const webhookId = v4_default();
+    await env.DB.prepare(`
+      INSERT INTO bank_product_webhooks (id, transaction_id, webhook_event, payload, processed, created_at)
+      VALUES (?, ?, ?, ?, 0, datetime('now'))
+    `).bind(
+      webhookId,
+      body.transaction_id,
+      body.event,
+      JSON.stringify(body)
+    ).run();
+    if (body.status) {
+      await env.DB.prepare(`
+        UPDATE bank_product_transactions 
+        SET status = ?, updated_at = datetime('now')
+        WHERE sbtpg_transaction_id = ?
+      `).bind(body.status, body.transaction_id).run();
+      await env.DB.prepare(`
+        UPDATE bank_product_webhooks 
+        SET processed = 1, processed_at = datetime('now')
+        WHERE id = ?
+      `).bind(webhookId).run();
+    }
+    return new Response(JSON.stringify({ success: true }), {
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (error) {
+    console.error("[Bank Products] Webhook processing failed:", error);
+    return new Response(JSON.stringify({
+      error: error.message || "Webhook processing failed"
+    }), { status: 500 });
+  }
+});
+router2.get("/info", async (req, env) => {
+  const client = createSBTPGClient(env);
+  const info = client.getInfo();
+  return new Response(JSON.stringify(info), {
+    headers: { "Content-Type": "application/json" }
+  });
+});
+var bankProducts_default = router2;
+
+// src/notifications.ts
+async function sendRealtimeNotification(env, notification) {
+  const notificationId = v4_default();
+  const now = (/* @__PURE__ */ new Date()).toISOString();
+  const notif = {
+    id: notificationId,
+    type: notification.type,
+    recipient_id: notification.recipient_id,
+    recipient_type: notification.recipient_type,
+    title: notification.title || getDefaultTitle(notification.type),
+    message: notification.message,
+    urgent: notification.urgent || false,
+    data: notification.data || {},
+    channels: notification.channels || getDefaultChannels(notification.type),
+    read: false,
+    created_at: now
+  };
+  await env.DB.prepare(`
+    INSERT INTO notifications (
+      id, type, recipient_id, recipient_type, title, message,
+      urgent, data, channels, read, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).bind(
+    notif.id,
+    notif.type,
+    notif.recipient_id,
+    notif.recipient_type,
+    notif.title,
+    notif.message,
+    notif.urgent ? 1 : 0,
+    JSON.stringify(notif.data),
+    JSON.stringify(notif.channels),
+    0,
+    notif.created_at
+  ).run();
+  await Promise.all([
+    notif.channels.includes("email") ? sendEmail(env, notif) : null,
+    notif.channels.includes("sms") ? sendSMS(env, notif) : null,
+    notif.channels.includes("push") ? sendPush(env, notif) : null,
+    notif.channels.includes("websocket") ? broadcastWebSocket(env, notif) : null
+  ]);
+  return notif;
+}
+__name(sendRealtimeNotification, "sendRealtimeNotification");
+async function sendEmail(env, notification) {
+  const recipient = await env.DB.prepare(
+    notification.recipient_type === "client" ? "SELECT email, name FROM clients WHERE id = ?" : "SELECT email, name FROM staff WHERE id = ?"
+  ).bind(notification.recipient_id).first();
+  if (!recipient) return;
+  const emailBody = {
+    personalizations: [{
+      to: [{ email: recipient.email, name: recipient.name }]
+    }],
+    from: {
+      email: "notifications@rosstaxprepandbookkeeping.com",
+      name: "Ross Tax Prep & Bookkeeping"
+    },
+    subject: notification.urgent ? `\u{1F534} URGENT: ${notification.title}` : notification.title,
+    content: [{
+      type: "text/html",
+      value: generateEmailTemplate(notification, recipient.name)
+    }]
+  };
+  await fetch("https://api.mailchannels.net/tx/v1/send", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-API-Key": env.MAILCHANNELS_API_KEY
+    },
+    body: JSON.stringify(emailBody)
+  });
+  console.log(`\u2705 Email sent to ${recipient.email}: ${notification.title}`);
+}
+__name(sendEmail, "sendEmail");
+async function sendSMS(env, notification) {
+  if (!notification.urgent) return;
+  const recipient = await env.DB.prepare(
+    notification.recipient_type === "client" ? "SELECT phone FROM clients WHERE id = ?" : "SELECT phone FROM staff WHERE id = ?"
+  ).bind(notification.recipient_id).first();
+  if (!recipient?.phone) return;
+  if (env.TWILIO_ACCOUNT_SID && env.TWILIO_AUTH_TOKEN) {
+    const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${env.TWILIO_ACCOUNT_SID}/Messages.json`;
+    const formData = new URLSearchParams();
+    formData.append("From", env.TWILIO_PHONE_NUMBER);
+    formData.append("To", recipient.phone);
+    formData.append("Body", `${notification.title}: ${notification.message}`);
+    await fetch(twilioUrl, {
+      method: "POST",
+      headers: {
+        "Authorization": "Basic " + btoa(`${env.TWILIO_ACCOUNT_SID}:${env.TWILIO_AUTH_TOKEN}`),
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
+      body: formData
+    });
+    console.log(`\u2705 SMS sent to ${recipient.phone}: ${notification.title}`);
+  }
+}
+__name(sendSMS, "sendSMS");
+async function sendPush(env, notification) {
+  console.log(`\u{1F4F1} Push notification: ${notification.title}`);
+}
+__name(sendPush, "sendPush");
+async function broadcastWebSocket(env, notification) {
+  console.log(`\u{1F50C} WebSocket broadcast: ${notification.title}`);
+}
+__name(broadcastWebSocket, "broadcastWebSocket");
+async function getUnreadNotifications(env, recipientId, recipientType) {
+  const result = await env.DB.prepare(`
+    SELECT * FROM notifications
+    WHERE recipient_id = ? AND recipient_type = ? AND read = 0
+    ORDER BY urgent DESC, created_at DESC
+  `).bind(recipientId, recipientType).all();
+  return result.results;
+}
+__name(getUnreadNotifications, "getUnreadNotifications");
+async function markAsRead(env, notificationId) {
+  await env.DB.prepare(`
+    UPDATE notifications
+    SET read = 1, read_at = ?
+    WHERE id = ?
+  `).bind((/* @__PURE__ */ new Date()).toISOString(), notificationId).run();
+}
+__name(markAsRead, "markAsRead");
+async function getNotificationCount(env, recipientId, recipientType) {
+  const total = await env.DB.prepare(`
+    SELECT COUNT(*) as count FROM notifications
+    WHERE recipient_id = ? AND recipient_type = ? AND read = 0
+  `).bind(recipientId, recipientType).first();
+  const urgent = await env.DB.prepare(`
+    SELECT COUNT(*) as count FROM notifications
+    WHERE recipient_id = ? AND recipient_type = ? AND read = 0 AND urgent = 1
+  `).bind(recipientId, recipientType).first();
+  return {
+    total: total?.count || 0,
+    urgent: urgent?.count || 0
+  };
+}
+__name(getNotificationCount, "getNotificationCount");
+function getDefaultTitle(type) {
+  const titles = {
+    "return_accepted": "Tax Return Accepted",
+    "return_rejected": "Tax Return Rejected",
+    "refund_approved": "Refund Approved",
+    "refund_disbursed": "Refund Disbursed",
+    "bank_product_selected": "Bank Product Selected",
+    "refund_advance_approved": "Refund Advance Approved",
+    "refund_advance_disbursed": "Refund Advance Disbursed",
+    "payment_received": "Payment Received",
+    "document_needed": "Document Upload Required",
+    "signature_required": "Signature Required",
+    "task_assigned": "New Task Assigned",
+    "task_completed": "Task Completed"
+  };
+  return titles[type] || "Notification";
+}
+__name(getDefaultTitle, "getDefaultTitle");
+function getDefaultChannels(type) {
+  const urgentTypes = [
+    "refund_advance_approved",
+    "refund_advance_disbursed",
+    "return_rejected",
+    "signature_required"
+  ];
+  if (urgentTypes.includes(type)) {
+    return ["email", "sms", "push", "websocket"];
+  }
+  return ["email", "websocket"];
+}
+__name(getDefaultChannels, "getDefaultChannels");
+function generateEmailTemplate(notification, recipientName) {
+  const urgentBanner = notification.urgent ? `<div style="background: #DC3545; color: white; padding: 10px; text-align: center; font-weight: bold;">\u{1F534} URGENT NOTIFICATION</div>` : "";
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background: #1B365D; color: white; padding: 20px; text-align: center; }
+    .content { background: white; padding: 30px; border: 1px solid #ddd; }
+    .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
+    .button { display: inline-block; background: #C4A962; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  ${urgentBanner}
+  <div class="container">
+    <div class="header">
+      <h1>Ross Tax Prep & Bookkeeping</h1>
+    </div>
+    <div class="content">
+      <h2>${notification.title}</h2>
+      <p>Hi ${recipientName},</p>
+      <p>${notification.message}</p>
+      ${notification.data?.action_url ? `<p><a href="${notification.data.action_url}" class="button">View Details</a></p>` : ""}
+    </div>
+    <div class="footer">
+      <p>Ross Tax Prep & Bookkeeping LLC | EIN: 33-4891499 | EFIN: 748335</p>
+      <p><a href="https://www.rosstaxprepandbookkeeping.com">www.rosstaxprepandbookkeeping.com</a></p>
+    </div>
+  </div>
+</body>
+</html>
+  `;
+}
+__name(generateEmailTemplate, "generateEmailTemplate");
+
+// src/utils/auth.ts
+async function verifyAuth(req, env) {
+  try {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return { valid: false, error: "No authorization token provided" };
+    }
+    const token = authHeader.substring(7);
+    const isValid = await index_default.verify(token, env.JWT_SECRET || "default-secret");
+    if (!isValid) {
+      return { valid: false, error: "Invalid or expired token" };
+    }
+    const { payload } = index_default.decode(token);
+    return {
+      valid: true,
+      userId: payload.sub || payload.userId,
+      role: payload.role,
+      email: payload.email
+    };
+  } catch (error) {
+    return { valid: false, error: error.message };
+  }
+}
+__name(verifyAuth, "verifyAuth");
+
+// src/routes/notifications.ts
+var router3 = t();
+router3.get("/api/notifications", async (req, env) => {
+  try {
+    const auth = await verifyAuth(req, env);
+    if (!auth.valid) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+    }
+    const recipientType = auth.role === "admin" ? "admin" : auth.role === "tax_prep" || auth.role === "ero" ? "staff" : "client";
+    const result = await env.DB.prepare(`
+      SELECT * FROM notifications
+      WHERE recipient_id = ? AND recipient_type = ?
+      ORDER BY urgent DESC, created_at DESC
+      LIMIT 50
+    `).bind(auth.userId, recipientType).all();
+    return new Response(JSON.stringify({
+      success: true,
+      notifications: result.results
+    }), {
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (err) {
+    console.error("Error getting notifications:", err);
+    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+  }
+});
+router3.get("/api/notifications/unread", async (req, env) => {
+  try {
+    const auth = await verifyAuth(req, env);
+    if (!auth.valid) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+    }
+    const recipientType = auth.role === "admin" ? "admin" : auth.role === "tax_prep" || auth.role === "ero" ? "staff" : "client";
+    const notifications = await getUnreadNotifications(env, auth.userId, recipientType);
+    return new Response(JSON.stringify({
+      success: true,
+      notifications
+    }), {
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (err) {
+    console.error("Error getting unread notifications:", err);
+    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+  }
+});
+router3.get("/api/notifications/count", async (req, env) => {
+  try {
+    const auth = await verifyAuth(req, env);
+    if (!auth.valid) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+    }
+    const recipientType = auth.role === "admin" ? "admin" : auth.role === "tax_prep" || auth.role === "ero" ? "staff" : "client";
+    const count = await getNotificationCount(env, auth.userId, recipientType);
+    return new Response(JSON.stringify({
+      success: true,
+      ...count
+    }), {
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (err) {
+    console.error("Error getting notification count:", err);
+    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+  }
+});
+router3.post("/api/notifications/:id/read", async (req, env) => {
+  try {
+    const auth = await verifyAuth(req, env);
+    if (!auth.valid) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+    }
+    const notificationId = req.params.id;
+    await markAsRead(env, notificationId);
+    return new Response(JSON.stringify({
+      success: true,
+      message: "Notification marked as read"
+    }), {
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (err) {
+    console.error("Error marking notification as read:", err);
+    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+  }
+});
+router3.post("/api/notifications/send", async (req, env) => {
+  try {
+    const auth = await verifyAuth(req, env);
+    if (!auth.valid || auth.role !== "admin" && auth.role !== "ero" && auth.role !== "tax_prep") {
+      return new Response(JSON.stringify({ error: "Forbidden - Staff only" }), { status: 403 });
+    }
+    const data = await req.json();
+    if (!data.recipient_id || !data.message) {
+      return new Response(JSON.stringify({
+        error: "Missing required fields: recipient_id, message"
+      }), { status: 400 });
+    }
+    const notification = await sendRealtimeNotification(env, {
+      type: data.type || "custom",
+      recipient_id: data.recipient_id,
+      recipient_type: data.recipient_type || "client",
+      title: data.title,
+      message: data.message,
+      urgent: data.urgent || false,
+      data: data.data
+    });
+    return new Response(JSON.stringify({
+      success: true,
+      notification
+    }), {
+      status: 201,
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (err) {
+    console.error("Error sending notification:", err);
+    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+  }
+});
+var notifications_default = router3;
+
+// src/irsRefundTracking.ts
+function getWhereIsMyRefundUrl(params) {
+  const baseUrl = "https://www.irs.gov/refunds";
+  return baseUrl;
+}
+__name(getWhereIsMyRefundUrl, "getWhereIsMyRefundUrl");
+function getWhereIsMyAmendedReturnUrl(params) {
+  const baseUrl = "https://www.irs.gov/filing/wheres-my-amended-return";
+  return baseUrl;
+}
+__name(getWhereIsMyAmendedReturnUrl, "getWhereIsMyAmendedReturnUrl");
+async function checkRefundStatus(env, clientId, taxYear) {
+  try {
+    const refund = await env.DB.prepare(`
+      SELECT 
+        t.id,
+        t.irs_refund_status,
+        t.refund_method,
+        t.refund_amount,
+        t.refund_disbursed_at,
+        t.refund_trace_id,
+        t.refund_notes,
+        t.dcn,
+        t.status,
+        r.tax_year,
+        r.form_type
+      FROM efile_transmissions t
+      JOIN returns r ON t.return_id = r.id
+      WHERE t.client_id = ? 
+        AND r.tax_year = ?
+        AND r.is_amended = 0
+        AND t.status = 'accepted'
+      ORDER BY t.created_at DESC
+      LIMIT 1
+    `).bind(clientId, taxYear).first();
+    if (!refund) {
+      return null;
+    }
+    return {
+      transmissionId: refund.id,
+      taxYear: refund.tax_year,
+      formType: refund.form_type,
+      status: mapIrsRefundStatus(refund.irs_refund_status),
+      statusDescription: getRefundStatusDescription(refund.irs_refund_status),
+      refundAmount: refund.refund_amount,
+      refundMethod: refund.refund_method,
+      disbursedAt: refund.refund_disbursed_at,
+      dcn: refund.dcn,
+      traceId: refund.refund_trace_id,
+      notes: refund.refund_notes,
+      irsToolUrl: "https://www.irs.gov/refunds"
+    };
+  } catch (error) {
+    console.error("Error checking refund status:", error);
+    return null;
+  }
+}
+__name(checkRefundStatus, "checkRefundStatus");
+async function checkAmendedReturnStatus(env, clientId, taxYear) {
+  try {
+    const amended = await env.DB.prepare(`
+      SELECT 
+        t.id,
+        t.status,
+        t.ack_code,
+        t.ack_message,
+        t.dcn,
+        t.created_at,
+        t.updated_at,
+        r.tax_year,
+        r.form_type,
+        r.original_return_id
+      FROM efile_transmissions t
+      JOIN returns r ON t.return_id = r.id
+      WHERE t.client_id = ? 
+        AND r.tax_year = ?
+        AND r.is_amended = 1
+      ORDER BY t.created_at DESC
+      LIMIT 1
+    `).bind(clientId, taxYear).first();
+    if (!amended) {
+      return null;
+    }
+    return {
+      transmissionId: amended.id,
+      taxYear: amended.tax_year,
+      formType: amended.form_type,
+      status: mapAmendedReturnStatus(amended.status),
+      statusDescription: getAmendedReturnStatusDescription(amended.status),
+      dcn: amended.dcn,
+      ackCode: amended.ack_code,
+      submittedAt: amended.created_at,
+      lastUpdated: amended.updated_at,
+      irsToolUrl: "https://www.irs.gov/filing/wheres-my-amended-return",
+      estimatedProcessingTime: "16 weeks"
+      // IRS standard processing time
+    };
+  } catch (error) {
+    console.error("Error checking amended return status:", error);
+    return null;
+  }
+}
+__name(checkAmendedReturnStatus, "checkAmendedReturnStatus");
+async function updateRefundStatus(env, transmissionId, statusUpdate) {
+  const updates = [];
+  const params = [];
+  if (statusUpdate.irs_refund_status) {
+    updates.push("irs_refund_status = ?");
+    params.push(statusUpdate.irs_refund_status);
+  }
+  if (statusUpdate.refund_method) {
+    updates.push("refund_method = ?");
+    params.push(statusUpdate.refund_method);
+  }
+  if (statusUpdate.refund_amount !== void 0) {
+    updates.push("refund_amount = ?");
+    params.push(statusUpdate.refund_amount);
+  }
+  if (statusUpdate.refund_disbursed_at) {
+    updates.push("refund_disbursed_at = ?");
+    params.push(statusUpdate.refund_disbursed_at);
+  }
+  if (statusUpdate.refund_trace_id) {
+    updates.push("refund_trace_id = ?");
+    params.push(statusUpdate.refund_trace_id);
+  }
+  if (statusUpdate.refund_notes) {
+    updates.push("refund_notes = ?");
+    params.push(statusUpdate.refund_notes);
+  }
+  if (updates.length === 0) return;
+  updates.push("updated_at = datetime('now')");
+  params.push(transmissionId);
+  await env.DB.prepare(
+    `UPDATE efile_transmissions SET ${updates.join(", ")} WHERE id = ?`
+  ).bind(...params).run();
+  await logAudit(env, {
+    action: "refund_status_updated",
+    resource_type: "efile_transmission",
+    resource_id: transmissionId,
+    details: statusUpdate
+  });
+}
+__name(updateRefundStatus, "updateRefundStatus");
+function mapIrsRefundStatus(status) {
+  if (!status) return "pending";
+  const normalized = status.toLowerCase();
+  if (normalized.includes("disbursed") || normalized.includes("deposited")) {
+    return "disbursed";
+  }
+  if (normalized.includes("sent") || normalized.includes("mailed")) {
+    return "sent";
+  }
+  if (normalized.includes("approved")) {
+    return "approved";
+  }
+  if (normalized.includes("rejected") || normalized.includes("denied")) {
+    return "rejected";
+  }
+  return "pending";
+}
+__name(mapIrsRefundStatus, "mapIrsRefundStatus");
+function getRefundStatusDescription(status) {
+  if (!status) return "Your refund is being processed by the IRS.";
+  const normalized = status.toLowerCase();
+  if (normalized.includes("disbursed") || normalized.includes("deposited")) {
+    return "Your refund has been deposited into your bank account.";
+  }
+  if (normalized.includes("sent") || normalized.includes("mailed")) {
+    return "Your refund check has been mailed to your address on file.";
+  }
+  if (normalized.includes("approved")) {
+    return "Your refund has been approved and will be sent soon.";
+  }
+  if (normalized.includes("rejected") || normalized.includes("denied")) {
+    return "There was an issue with your refund. Please contact the IRS.";
+  }
+  return status;
+}
+__name(getRefundStatusDescription, "getRefundStatusDescription");
+function mapAmendedReturnStatus(status) {
+  if (!status) return "received";
+  const normalized = status.toLowerCase();
+  if (normalized.includes("completed") || normalized.includes("processed")) {
+    return "completed";
+  }
+  if (normalized.includes("adjusted") || normalized.includes("processing")) {
+    return "adjusted";
+  }
+  if (normalized.includes("rejected") || normalized.includes("denied")) {
+    return "rejected";
+  }
+  return "received";
+}
+__name(mapAmendedReturnStatus, "mapAmendedReturnStatus");
+function getAmendedReturnStatusDescription(status) {
+  if (!status) return "Your amended return has been received by the IRS.";
+  const normalized = status.toLowerCase();
+  if (normalized.includes("completed")) {
+    return "Your amended return has been processed. Any refund or balance due has been resolved.";
+  }
+  if (normalized.includes("adjusted")) {
+    return "Your amended return is being adjusted by the IRS. Processing typically takes up to 16 weeks.";
+  }
+  if (normalized.includes("rejected")) {
+    return "Your amended return was rejected. Please review and resubmit.";
+  }
+  return "Your amended return is being processed. This can take up to 16 weeks.";
+}
+__name(getAmendedReturnStatusDescription, "getAmendedReturnStatusDescription");
+function formatRefundAmount(amount) {
+  if (!amount) return "$0.00";
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD"
+  }).format(amount);
+}
+__name(formatRefundAmount, "formatRefundAmount");
+
+// src/routes/irsTracking.ts
+var router4 = t();
+router4.get("/api/irs/refund-status/:clientId/:taxYear", async (req, env) => {
+  try {
+    const { clientId, taxYear } = req.params;
+    if (!clientId || !taxYear) {
+      return new Response(JSON.stringify({ error: "Client ID and tax year required" }), {
+        status: 400
+      });
+    }
+    const status = await checkRefundStatus(env, clientId, parseInt(taxYear));
+    if (!status) {
+      return new Response(JSON.stringify({
+        error: "No refund found for this tax year",
+        message: "Return may not have been filed or accepted yet"
+      }), {
+        status: 404
+      });
+    }
+    await logAudit(env, {
+      action: "refund_status_checked",
+      resource_type: "efile_transmission",
+      resource_id: status.transmissionId,
+      user_id: clientId,
+      details: { taxYear, status: status.status }
+    });
+    return new Response(JSON.stringify({
+      success: true,
+      data: {
+        ...status,
+        refundAmountFormatted: formatRefundAmount(status.refundAmount)
+      },
+      message: status.statusDescription,
+      irsLink: {
+        url: status.irsToolUrl,
+        label: "Check on IRS.gov (Where's My Refund)",
+        instructions: "You will need your SSN, filing status, and exact refund amount"
+      }
+    }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (error) {
+    console.error("Refund status check error:", error);
+    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  }
+});
+router4.get("/api/irs/amended-status/:clientId/:taxYear", async (req, env) => {
+  try {
+    const { clientId, taxYear } = req.params;
+    if (!clientId || !taxYear) {
+      return new Response(JSON.stringify({ error: "Client ID and tax year required" }), {
+        status: 400
+      });
+    }
+    const status = await checkAmendedReturnStatus(env, clientId, parseInt(taxYear));
+    if (!status) {
+      return new Response(JSON.stringify({
+        error: "No amended return found for this tax year",
+        message: "Amended return may not have been filed yet"
+      }), {
+        status: 404
+      });
+    }
+    await logAudit(env, {
+      action: "amended_return_status_checked",
+      resource_type: "efile_transmission",
+      resource_id: status.transmissionId,
+      user_id: clientId,
+      details: { taxYear, status: status.status }
+    });
+    return new Response(JSON.stringify({
+      success: true,
+      data: status,
+      message: status.statusDescription,
+      irsLink: {
+        url: status.irsToolUrl,
+        label: "Check on IRS.gov (Where's My Amended Return)",
+        instructions: "You will need your SSN, date of birth, and ZIP code",
+        processingTime: status.estimatedProcessingTime
+      }
+    }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (error) {
+    console.error("Amended return status check error:", error);
+    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  }
+});
+router4.post("/api/irs/update-refund-status", async (req, env) => {
+  try {
+    const { transmissionId, statusUpdate } = await req.json();
+    if (!transmissionId || !statusUpdate) {
+      return new Response(JSON.stringify({ error: "Transmission ID and status update required" }), {
+        status: 400
+      });
+    }
+    const transmission = await env.DB.prepare(
+      "SELECT id, client_id FROM efile_transmissions WHERE id = ?"
+    ).bind(transmissionId).first();
+    if (!transmission) {
+      return new Response(JSON.stringify({ error: "Transmission not found" }), {
+        status: 404
+      });
+    }
+    await updateRefundStatus(env, transmissionId, statusUpdate);
+    await logAudit(env, {
+      action: "refund_status_updated",
+      resource_type: "efile_transmission",
+      resource_id: transmissionId,
+      details: statusUpdate
+    });
+    return new Response(JSON.stringify({
+      success: true,
+      message: "Refund status updated successfully",
+      transmissionId
+    }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (error) {
+    console.error("Refund status update error:", error);
+    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  }
+});
+router4.get("/api/irs/wheres-my-refund", async (req, env) => {
+  const url = new URL(req.url);
+  const ssn = url.searchParams.get("ssn");
+  const filingStatus = url.searchParams.get("filingStatus");
+  const refundAmount = url.searchParams.get("refundAmount");
+  const taxYear = url.searchParams.get("taxYear");
+  const irsUrl = getWhereIsMyRefundUrl({
+    ssn: ssn || "",
+    filingStatus: filingStatus || "single",
+    refundAmount: parseFloat(refundAmount || "0"),
+    taxYear: parseInt(taxYear || (/* @__PURE__ */ new Date()).getFullYear().toString())
+  });
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Redirecting to IRS.gov - Where's My Refund</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 600px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .card {
+      background: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #1B365D;
+      font-size: 24px;
+    }
+    .info {
+      background: #e8f4f8;
+      border-left: 4px solid #1B365D;
+      padding: 15px;
+      margin: 20px 0;
+    }
+    .info strong {
+      display: block;
+      margin-bottom: 10px;
+      color: #1B365D;
+    }
+    .btn {
+      display: inline-block;
+      background: #1B365D;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 4px;
+      text-decoration: none;
+      font-weight: 600;
+      margin-top: 20px;
+    }
+    .btn:hover {
+      background: #C4A962;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>\u{1F50D} Where's My Refund?</h1>
+    <p>You will be redirected to the official IRS.gov "Where's My Refund" tool.</p>
+    
+    <div class="info">
+      <strong>You will need the following information:</strong>
+      <ul>
+        <li>Social Security Number: ***-**-${ssn?.slice(-4) || "XXXX"}</li>
+        <li>Filing Status: ${filingStatus || "Unknown"}</li>
+        <li>Exact Refund Amount: ${formatRefundAmount(parseFloat(refundAmount || "0"))}</li>
+        <li>Tax Year: ${taxYear || (/* @__PURE__ */ new Date()).getFullYear()}</li>
+      </ul>
+    </div>
+
+    <p><strong>Note:</strong> Refund information is typically available 24 hours after e-filing or 4 weeks after mailing a paper return.</p>
+
+    <a href="${irsUrl}" class="btn" target="_blank">Continue to IRS.gov \u2192</a>
+  </div>
+
+  <script>
+    // Auto-redirect after 3 seconds
+    setTimeout(() => {
+      window.location.href = "${irsUrl}";
+    }, 5000);
+  <\/script>
+</body>
+</html>
+  `;
+  return new Response(html, {
+    status: 200,
+    headers: { "Content-Type": "text/html" }
+  });
+});
+router4.get("/api/irs/wheres-my-amended-return", async (req, env) => {
+  const url = new URL(req.url);
+  const ssn = url.searchParams.get("ssn");
+  const dob = url.searchParams.get("dob");
+  const zipCode = url.searchParams.get("zipCode");
+  const taxYear = url.searchParams.get("taxYear");
+  const irsUrl = getWhereIsMyAmendedReturnUrl({
+    ssn: ssn || "",
+    dob: dob || "",
+    zipCode: zipCode || "",
+    taxYear: parseInt(taxYear || (/* @__PURE__ */ new Date()).getFullYear().toString())
+  });
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Redirecting to IRS.gov - Where's My Amended Return</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 600px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .card {
+      background: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #1B365D;
+      font-size: 24px;
+    }
+    .info {
+      background: #fff3cd;
+      border-left: 4px solid #C4A962;
+      padding: 15px;
+      margin: 20px 0;
+    }
+    .info strong {
+      display: block;
+      margin-bottom: 10px;
+      color: #1B365D;
+    }
+    .btn {
+      display: inline-block;
+      background: #1B365D;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 4px;
+      text-decoration: none;
+      font-weight: 600;
+      margin-top: 20px;
+    }
+    .btn:hover {
+      background: #C4A962;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>\u{1F4DD} Where's My Amended Return?</h1>
+    <p>You will be redirected to the official IRS.gov "Where's My Amended Return" tool.</p>
+    
+    <div class="info">
+      <strong>You will need the following information:</strong>
+      <ul>
+        <li>Social Security Number: ***-**-${ssn?.slice(-4) || "XXXX"}</li>
+        <li>Date of Birth: ${dob || "YYYY-MM-DD"}</li>
+        <li>ZIP Code: ${zipCode || "XXXXX"}</li>
+        <li>Tax Year: ${taxYear || (/* @__PURE__ */ new Date()).getFullYear()}</li>
+      </ul>
+    </div>
+
+    <p><strong>Note:</strong> Amended return processing typically takes up to 16 weeks. Information is available 3 weeks after filing Form 1040-X.</p>
+
+    <a href="${irsUrl}" class="btn" target="_blank">Continue to IRS.gov \u2192</a>
+  </div>
+
+  <script>
+    setTimeout(() => {
+      window.location.href = "${irsUrl}";
+    }, 5000);
+  <\/script>
+</body>
+</html>
+  `;
+  return new Response(html, {
+    status: 200,
+    headers: { "Content-Type": "text/html" }
+  });
+});
+var irsTracking_default = router4;
+
+// src/aiTaxAssistant.ts
+var AITaxAssistant = class {
+  static {
+    __name(this, "AITaxAssistant");
+  }
+  env;
+  context;
+  constructor(env, context) {
+    this.env = env;
+    this.context = context;
+  }
+  /**
+   * Process user question and provide intelligent response
+   */
+  async ask(question) {
+    console.log(`[AI Assistant] Processing question for session ${this.context.session_id}`);
+    await this.storeMessage("user", question);
+    const intent = this.analyzeIntent(question);
+    let response;
+    switch (intent.type) {
+      case "form_help":
+        response = await this.provideFormHelp(intent.form || this.context.current_form);
+        break;
+      case "calculation":
+        response = await this.helpWithCalculation(intent.field);
+        break;
+      case "deduction":
+        response = await this.explainDeduction(intent.deduction);
+        break;
+      case "credit":
+        response = await this.explainCredit(intent.credit);
+        break;
+      case "income_reporting":
+        response = await this.helpWithIncome(intent.income_type);
+        break;
+      case "efile_status":
+        response = await this.checkEFileStatus();
+        break;
+      case "general":
+      default:
+        response = await this.provideGeneralHelp(question);
+    }
+    await this.storeMessage("assistant", response.message, response.suggestions);
+    return response;
+  }
+  /**
+   * Provide guidance for specific form
+   */
+  async provideFormHelp(formName) {
+    if (!formName) {
+      return {
+        message: "Which form do you need help with? I can assist with Form 1040, W-2, 1099s, Schedules 1-3, and many more.",
+        suggestions: [
+          "Help with Form 1040",
+          "Help with Schedule 1",
+          "Help with W-2 income",
+          "Help with 1099-NEC income"
+        ]
+      };
+    }
+    const guidance = this.getFormGuidance(formName);
+    return {
+      message: `**${guidance.form_name}**
+
+${guidance.description}
+
+**When to use:** ${guidance.when_to_use}`,
+      suggestions: guidance.tips.slice(0, 3),
+      form_help: guidance.tips.join("\n"),
+      tax_tip: guidance.common_errors[0]
+    };
+  }
+  /**
+   * Help with tax calculations
+   */
+  async helpWithCalculation(field) {
+    const currentForm = this.context.current_form || "1040";
+    if (currentForm === "1040") {
+      return {
+        message: "I can help you calculate:\n\u2022 Total Income (Line 9)\n\u2022 Adjusted Gross Income (Line 11)\n\u2022 Taxable Income (Line 15)\n\u2022 Total Tax (Line 24)\n\u2022 Refund or Amount Owed",
+        suggestions: [
+          "Calculate my total income",
+          "Calculate my AGI",
+          "Calculate my taxable income",
+          "What's my tax bracket?"
+        ],
+        tax_tip: "Pro tip: Maximize deductions on Schedule 1 to reduce your AGI"
+      };
+    }
+    return {
+      message: `Let me help you with calculations for ${currentForm}. What would you like to calculate?`,
+      suggestions: ["Show calculation steps", "Explain this line item", "Why this amount?"]
+    };
+  }
+  /**
+   * Explain deductions
+   */
+  async explainDeduction(deductionType) {
+    const deductions = {
+      "standard": {
+        description: "Standard Deduction for 2025",
+        amounts: {
+          "single": "$15,000",
+          "married_filing_jointly": "$30,000",
+          "head_of_household": "$22,500"
+        },
+        tip: "Most taxpayers benefit from the standard deduction"
+      },
+      "student_loan_interest": {
+        description: "Student Loan Interest Deduction (Form 1040 Schedule 1 Line 21)",
+        max_amount: "$2,500",
+        tip: "You can deduct up to $2,500 of interest paid on qualified student loans"
+      },
+      "hsa": {
+        description: "Health Savings Account (HSA) Deduction (Form 1040 Schedule 1 Line 13)",
+        limits_2025: {
+          "self_only": "$4,300",
+          "family": "$8,550"
+        },
+        tip: "HSA contributions are pre-tax and grow tax-free"
+      },
+      "ira": {
+        description: "IRA Deduction (Form 1040 Schedule 1 Line 20)",
+        limits_2025: "$7,000 ($8,000 if age 50+)",
+        tip: "Traditional IRA contributions may be tax-deductible"
+      }
+    };
+    const deduction = deductions[deductionType || "standard"];
+    return {
+      message: `**${deduction.description}**
+
+${JSON.stringify(deduction.amounts || deduction.limits_2025 || deduction.max_amount, null, 2)}`,
+      suggestions: [
+        "Am I eligible for this deduction?",
+        "How do I claim this?",
+        "Show me other deductions"
+      ],
+      tax_tip: deduction.tip
+    };
+  }
+  /**
+   * Explain tax credits
+   */
+  async explainCredit(creditType) {
+    const credits = {
+      "eitc": {
+        name: "Earned Income Tax Credit (EITC)",
+        max_2025: "$8,046 (3+ children)",
+        schedule: "Schedule EIC",
+        tip: "EITC is refundable - you can get money back even if you owe no tax"
+      },
+      "ctc": {
+        name: "Child Tax Credit (CTC)",
+        amount_2025: "$2,000 per qualifying child",
+        refundable_portion: "$1,700",
+        tip: "Children must be under age 17 at end of tax year"
+      },
+      "education": {
+        name: "Education Credits (Form 8863)",
+        types: ["American Opportunity Credit: $2,500", "Lifetime Learning Credit: $2,000"],
+        tip: "You can claim education credits for college expenses"
+      },
+      "saver": {
+        name: "Saver's Credit (Form 8880)",
+        amount: "Up to $1,000 ($2,000 married)",
+        tip: "Credit for low to moderate income taxpayers who save for retirement"
+      }
+    };
+    const credit = credits[creditType || "eitc"];
+    return {
+      message: `**${credit.name}**
+
+Max Credit: ${credit.max_2025 || credit.amount_2025 || credit.amount}
+
+${credit.tip}`,
+      suggestions: [
+        "Check if I qualify",
+        "How to claim this credit",
+        "Show me other credits"
+      ],
+      tax_tip: credit.tip
+    };
+  }
+  /**
+   * Help with income reporting
+   */
+  async helpWithIncome(incomeType) {
+    const incomeGuides = {
+      "w2": {
+        form: "Form W-2",
+        where_to_enter: "Form 1040 Line 1",
+        boxes_needed: "Boxes 1, 2, 16, 17, 19",
+        tip: "Enter wages from Box 1 of all W-2 forms"
+      },
+      "1099nec": {
+        form: "Form 1099-NEC",
+        where_to_enter: "Schedule C (if self-employed)",
+        boxes_needed: "Box 1 - Nonemployee compensation",
+        tip: "1099-NEC is for independent contractor income - you may owe self-employment tax"
+      },
+      "1099int": {
+        form: "Form 1099-INT",
+        where_to_enter: "Form 1040 Schedule B (if over $1,500)",
+        boxes_needed: "Box 1 - Interest income",
+        tip: "Report all interest income, even if under $1,500"
+      },
+      "1099div": {
+        form: "Form 1099-DIV",
+        where_to_enter: "Form 1040 Schedule B",
+        boxes_needed: "Box 1a - Ordinary dividends, Box 1b - Qualified dividends",
+        tip: "Qualified dividends get preferential tax rates"
+      },
+      "1098": {
+        form: "Form 1098",
+        where_to_enter: "Schedule A (if itemizing)",
+        boxes_needed: "Box 1 - Mortgage interest",
+        tip: "Mortgage interest is deductible if you itemize"
+      },
+      "1098t": {
+        form: "Form 1098-T",
+        where_to_enter: "Form 8863 (for education credits)",
+        boxes_needed: "Box 1 - Payments received",
+        tip: "Use 1098-T to claim education credits"
+      }
+    };
+    const guide = incomeGuides[incomeType || "w2"];
+    return {
+      message: `**${guide.form}**
+
+\u{1F4CD} **Where to enter:** ${guide.where_to_enter}
+\u{1F4CB} **Boxes needed:** ${guide.boxes_needed}
+
+\u{1F4A1} **Tip:** ${guide.tip}`,
+      suggestions: [
+        "How to enter this income",
+        "Do I need to report this?",
+        "What if I don't have this form?"
+      ],
+      tax_tip: guide.tip
+    };
+  }
+  /**
+   * Check e-file status
+   */
+  async checkEFileStatus() {
+    if (!this.context.return_id) {
+      return {
+        message: "You haven't started a tax return yet. Would you like to begin?",
+        suggestions: ["Start new return", "Import prior year", "Get help choosing"]
+      };
+    }
+    const returnStatus = await this.env.DB.prepare(
+      "SELECT status, irs_submission_id, ack_code FROM efile_transmissions WHERE return_id = ? ORDER BY created_at DESC LIMIT 1"
+    ).bind(this.context.return_id).first();
+    if (!returnStatus) {
+      return {
+        message: "Your return is in progress but hasn't been transmitted yet.",
+        suggestions: [
+          "Review return before filing",
+          "Check for errors",
+          "Ready to e-file"
+        ],
+        next_step: "review"
+      };
+    }
+    const statusMessages = {
+      "pending": "\u23F3 Your return is queued for transmission",
+      "transmitting": "\u{1F4E4} Your return is being transmitted to the IRS",
+      "accepted": "\u2705 Your return was accepted by the IRS!",
+      "rejected": "\u274C Your return was rejected. Let me help you fix it.",
+      "error": "\u26A0\uFE0F There was an error. Let me help troubleshoot.",
+      "completed": "\u{1F389} Your return is complete!"
+    };
+    return {
+      message: statusMessages[returnStatus.status] || "Checking status...",
+      suggestions: [
+        returnStatus.status === "accepted" ? "When will I get my refund?" : "What do I do next?",
+        "View return details",
+        "Contact support"
+      ],
+      next_step: returnStatus.status === "rejected" ? "fix_errors" : returnStatus.status === "accepted" ? "track_refund" : "wait"
+    };
+  }
+  /**
+   * Provide general help
+   */
+  async provideGeneralHelp(question) {
+    const lowerQuestion = question.toLowerCase();
+    if (lowerQuestion.includes("refund")) {
+      return {
+        message: "\u{1F4B0} **Refund Status**\n\nAfter the IRS accepts your return:\n\u2022 E-file with direct deposit: 21 days\n\u2022 Paper return: 6-8 weeks\n\u2022 Check 'Where's My Refund' on IRS.gov",
+        suggestions: [
+          "Estimate my refund",
+          "Why is my refund delayed?",
+          "Add direct deposit"
+        ],
+        tax_tip: "E-file with direct deposit is the fastest way to get your refund"
+      };
+    }
+    if (lowerQuestion.includes("deadline") || lowerQuestion.includes("due date")) {
+      return {
+        message: "\u{1F4C5} **2025 Tax Deadlines**\n\n\u2022 April 15, 2026: Individual returns (Form 1040)\n\u2022 March 15, 2026: S-Corps & Partnerships\n\u2022 October 15, 2026: Extended deadline",
+        suggestions: [
+          "File extension (Form 4868)",
+          "What if I can't pay?",
+          "Late filing penalties"
+        ],
+        tax_tip: "File on time even if you can't pay to avoid late filing penalties"
+      };
+    }
+    if (lowerQuestion.includes("amend")) {
+      return {
+        message: "\u{1F4DD} **Amending Your Return (Form 1040-X)**\n\nYou can file an amended return if you need to correct:\n\u2022 Income amounts\n\u2022 Filing status\n\u2022 Deductions or credits\n\nMust file within 3 years of original return",
+        suggestions: [
+          "Start amended return",
+          "What can I amend?",
+          "How long does it take?"
+        ]
+      };
+    }
+    return {
+      message: "I'm your AI Tax Assistant! I can help you with:\n\n\u{1F4CB} Form guidance (1040, W-2, 1099s, etc.)\n\u{1F4B0} Income & deduction questions\n\u{1F9EE} Tax calculations\n\u{1F4E4} E-file status\n\u{1F4A1} Tax tips & strategies",
+      suggestions: [
+        "Help with Form 1040",
+        "Maximize my refund",
+        "Check e-file status",
+        "Common tax deductions"
+      ],
+      tax_tip: "Ask me anything about your tax return - I'm here to help!"
+    };
+  }
+  /**
+   * Analyze question intent
+   */
+  analyzeIntent(question) {
+    const lower = question.toLowerCase();
+    if (lower.includes("form") || lower.includes("1040") || lower.includes("schedule")) {
+      const formMatch = question.match(/\b(1040|1099|w-?2|1098|schedule [1-3a-z]|8863|8880)\b/i);
+      return { type: "form_help", form: formMatch ? formMatch[0] : null };
+    }
+    if (lower.includes("calculate") || lower.includes("how much") || lower.includes("total")) {
+      return { type: "calculation", field: lower };
+    }
+    if (lower.includes("deduction") || lower.includes("deduct")) {
+      return { type: "deduction", deduction: this.extractDeductionType(lower) };
+    }
+    if (lower.includes("credit") || lower.includes("eitc") || lower.includes("ctc")) {
+      return { type: "credit", credit: this.extractCreditType(lower) };
+    }
+    if (lower.includes("income") || lower.includes("w-2") || lower.includes("1099")) {
+      return { type: "income_reporting", income_type: this.extractIncomeType(lower) };
+    }
+    if (lower.includes("status") || lower.includes("accepted") || lower.includes("rejected")) {
+      return { type: "efile_status" };
+    }
+    return { type: "general" };
+  }
+  extractDeductionType(text) {
+    if (text.includes("student loan")) return "student_loan_interest";
+    if (text.includes("hsa") || text.includes("health savings")) return "hsa";
+    if (text.includes("ira") || text.includes("retirement")) return "ira";
+    return "standard";
+  }
+  extractCreditType(text) {
+    if (text.includes("eitc") || text.includes("earned income")) return "eitc";
+    if (text.includes("ctc") || text.includes("child tax")) return "ctc";
+    if (text.includes("education") || text.includes("college")) return "education";
+    if (text.includes("saver")) return "saver";
+    return "eitc";
+  }
+  extractIncomeType(text) {
+    if (text.includes("w-2") || text.includes("w2") || text.includes("wages")) return "w2";
+    if (text.includes("1099-nec") || text.includes("1099nec")) return "1099nec";
+    if (text.includes("1099-int") || text.includes("interest")) return "1099int";
+    if (text.includes("1099-div") || text.includes("dividend")) return "1099div";
+    if (text.includes("1098") && !text.includes("t")) return "1098";
+    if (text.includes("1098-t") || text.includes("1098t")) return "1098t";
+    return "w2";
+  }
+  /**
+   * Get form-specific guidance
+   */
+  getFormGuidance(formName) {
+    const guides = {
+      "1040": {
+        form_name: "Form 1040 - U.S. Individual Income Tax Return",
+        description: "The main form for reporting personal income and calculating federal income tax.",
+        when_to_use: "All U.S. citizens and residents file Form 1040 annually.",
+        common_errors: [
+          "Math errors on income calculations",
+          "Missing signature",
+          "Wrong filing status",
+          "Forgetting to attach W-2s"
+        ],
+        tips: [
+          "Double-check all Social Security numbers",
+          "Review all income sources",
+          "Choose correct filing status",
+          "Sign and date the return"
+        ],
+        related_forms: ["Schedule 1", "Schedule 2", "Schedule 3", "W-2", "1099"]
+      },
+      "schedule1": {
+        form_name: "Schedule 1 - Additional Income and Adjustments to Income",
+        description: "Report additional income and claim adjustments (above-the-line deductions).",
+        when_to_use: "When you have income beyond W-2 wages or qualify for adjustments like IRA deductions or student loan interest.",
+        common_errors: [
+          "Forgetting self-employment income",
+          "Not claiming eligible deductions",
+          "Incorrect HSA deduction amounts"
+        ],
+        tips: [
+          "Part I: Report ALL additional income",
+          "Part II: Claim all eligible adjustments",
+          "Keep receipts for HSA and IRA contributions",
+          "Report unemployment compensation"
+        ],
+        related_forms: ["Schedule C", "Schedule E", "Form 8889 (HSA)"]
+      },
+      "w2": {
+        form_name: "Form W-2 - Wage and Tax Statement",
+        description: "Reports wages paid and taxes withheld by your employer.",
+        when_to_use: "Issued by your employer if you earned $600 or more.",
+        common_errors: [
+          "Not waiting for all W-2s before filing",
+          "Entering Box 1 (wages) incorrectly",
+          "Missing state/local income"
+        ],
+        tips: [
+          "Box 1 = Federal wages (goes to 1040 Line 1)",
+          "Box 2 = Federal tax withheld",
+          "Box 16/17/18/19 = State wages and withholding",
+          "Attach Copy B to your return"
+        ],
+        related_forms: ["Form 1040", "Schedule 1"]
+      },
+      "1099nec": {
+        form_name: "Form 1099-NEC - Nonemployee Compensation",
+        description: "Reports income paid to independent contractors and freelancers.",
+        when_to_use: "If you received $600+ as a non-employee (freelancer, contractor, gig worker).",
+        common_errors: [
+          "Not reporting 1099-NEC income",
+          "Forgetting self-employment tax",
+          "Not claiming business expenses"
+        ],
+        tips: [
+          "Report Box 1 income on Schedule C",
+          "You may owe self-employment tax (Schedule SE)",
+          "Deduct business expenses on Schedule C",
+          "Set aside 25-30% for taxes"
+        ],
+        related_forms: ["Schedule C", "Schedule SE", "Form 1040"]
+      }
+    };
+    return guides[formName.toLowerCase()] || guides["1040"];
+  }
+  /**
+   * Store conversation message
+   */
+  async storeMessage(role, content, suggestions) {
+    if (!this.env.DB) return;
+    try {
+      await this.env.DB.prepare(`
+        INSERT INTO ai_assistant_messages (id, session_id, role, content, form_context, suggestions, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+      `).bind(
+        v4_default(),
+        this.context.session_id,
+        role,
+        content,
+        this.context.current_form || null,
+        suggestions ? JSON.stringify(suggestions) : null
+      ).run();
+    } catch (error) {
+      console.error("[AI Assistant] Failed to store message:", error);
+    }
+  }
+  /**
+   * Get conversation history
+   */
+  async getHistory(limit = 20) {
+    const rows = await this.env.DB.prepare(
+      "SELECT * FROM ai_assistant_messages WHERE session_id = ? ORDER BY created_at DESC LIMIT ?"
+    ).bind(this.context.session_id, limit).all();
+    return rows.results;
+  }
+};
+function createAITaxAssistant(env, userId, sessionId, returnId) {
+  const context = {
+    user_id: userId,
+    return_id: returnId,
+    session_id: sessionId || v4_default(),
+    created_at: (/* @__PURE__ */ new Date()).toISOString()
+  };
+  return new AITaxAssistant(env, context);
+}
+__name(createAITaxAssistant, "createAITaxAssistant");
+
+// src/routes/aiAssistant.ts
+var router5 = t({ base: "/api/ai-assistant" });
+router5.post("/session", async (req, env) => {
+  try {
+    const body = await req.json();
+    if (!body.user_id) {
+      return new Response(JSON.stringify({ error: "user_id required" }), { status: 400 });
+    }
+    const sessionId = v4_default();
+    await env.DB.prepare(`
+      INSERT INTO ai_assistant_sessions (id, user_id, return_id, current_form, current_step, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+    `).bind(
+      sessionId,
+      body.user_id,
+      body.return_id || null,
+      body.current_form || null,
+      body.current_step || null
+    ).run();
+    return new Response(JSON.stringify({
+      session_id: sessionId,
+      message: "Hi! I'm your AI Tax Assistant. I'm here to help you through every step of filing your 2025 tax return. What would you like help with?"
+    }), {
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (error) {
+    console.error("[AI Assistant] Session creation failed:", error);
+    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  }
+});
+router5.post("/ask", async (req, env) => {
+  try {
+    const body = await req.json();
+    if (!body.session_id || !body.question) {
+      return new Response(JSON.stringify({ error: "session_id and question required" }), { status: 400 });
+    }
+    const session = await env.DB.prepare(
+      "SELECT * FROM ai_assistant_sessions WHERE id = ?"
+    ).bind(body.session_id).first();
+    if (!session) {
+      return new Response(JSON.stringify({ error: "Session not found" }), { status: 404 });
+    }
+    const assistant = createAITaxAssistant(
+      env,
+      session.user_id,
+      session.id,
+      session.return_id
+    );
+    const response = await assistant.ask(body.question);
+    await env.DB.prepare(`
+      UPDATE ai_assistant_sessions 
+      SET current_form = ?, current_step = ?, updated_at = datetime('now')
+      WHERE id = ?
+    `).bind(
+      body.current_form || session.current_form,
+      response.next_step || session.current_step,
+      session.id
+    ).run();
+    return new Response(JSON.stringify(response), {
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (error) {
+    console.error("[AI Assistant] Question processing failed:", error);
+    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  }
+});
+router5.get("/history/:session_id", async (req, env) => {
+  const sessionId = req.params.session_id;
+  const rows = await env.DB.prepare(
+    "SELECT * FROM ai_assistant_messages WHERE session_id = ? ORDER BY created_at ASC LIMIT 50"
+  ).bind(sessionId).all();
+  return new Response(JSON.stringify({
+    session_id: sessionId,
+    messages: rows.results
+  }), {
+    headers: { "Content-Type": "application/json" }
+  });
+});
+router5.get("/forms/search", async (req, env) => {
+  const url = new URL(req.url);
+  const query = url.searchParams.get("q")?.toLowerCase() || "";
+  if (!query) {
+    const rows2 = await env.DB.prepare(
+      "SELECT * FROM form_finder_index WHERE is_active = 1 ORDER BY form_number LIMIT 20"
+    ).all();
+    return new Response(JSON.stringify({ results: rows2.results }), {
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+  const rows = await env.DB.prepare(`
+    SELECT * FROM form_finder_index 
+    WHERE is_active = 1 
+    AND (
+      LOWER(form_number) LIKE ? 
+      OR LOWER(form_name) LIKE ? 
+      OR LOWER(keywords) LIKE ?
+    )
+    ORDER BY 
+      CASE 
+        WHEN LOWER(form_number) = ? THEN 1
+        WHEN LOWER(form_number) LIKE ? THEN 2
+        ELSE 3
+      END,
+      form_number
+    LIMIT 10
+  `).bind(
+    `%${query}%`,
+    `%${query}%`,
+    `%${query}%`,
+    query,
+    `${query}%`
+  ).all();
+  return new Response(JSON.stringify({
+    query,
+    results: rows.results
+  }), {
+    headers: { "Content-Type": "application/json" }
+  });
+});
+router5.get("/forms/:form_number", async (req, env) => {
+  const formNumber = req.params.form_number.toUpperCase();
+  const form = await env.DB.prepare(
+    "SELECT * FROM form_finder_index WHERE UPPER(form_number) = ? AND is_active = 1"
+  ).bind(formNumber).first();
+  if (!form) {
+    return new Response(JSON.stringify({ error: "Form not found" }), { status: 404 });
+  }
+  const assistant = createAITaxAssistant(env, 0, v4_default());
+  const guidance = await assistant.provideFormHelp(formNumber);
+  return new Response(JSON.stringify({
+    form,
+    ai_guidance: guidance
+  }), {
+    headers: { "Content-Type": "application/json" }
+  });
+});
+router5.get("/workflow/:return_id", async (req, env) => {
+  const returnId = parseInt(req.params.return_id);
+  const workflow = await env.DB.prepare(
+    "SELECT * FROM efile_workflow WHERE return_id = ?"
+  ).bind(returnId).first();
+  if (!workflow) {
+    return new Response(JSON.stringify({ error: "Workflow not found" }), { status: 404 });
+  }
+  const steps = await env.DB.prepare(
+    "SELECT * FROM efile_workflow_steps ORDER BY step_order"
+  ).all();
+  const completedSteps = JSON.parse(workflow.completed_steps || "[]");
+  const currentStepIndex = steps.results.findIndex((s) => s.step_id === workflow.current_step);
+  return new Response(JSON.stringify({
+    return_id: returnId,
+    current_step: workflow.current_step,
+    current_step_name: steps.results[currentStepIndex]?.step_name,
+    progress_percent: Math.round(completedSteps.length / steps.results.length * 100),
+    completed_steps: completedSteps,
+    all_steps: steps.results,
+    validation_errors: JSON.parse(workflow.validation_errors || "[]"),
+    ai_suggestions: JSON.parse(workflow.ai_suggestions || "[]")
+  }), {
+    headers: { "Content-Type": "application/json" }
+  });
+});
+router5.post("/workflow/:return_id/step", async (req, env) => {
+  try {
+    const returnId = parseInt(req.params.return_id);
+    const body = await req.json();
+    if (!body.step_id) {
+      return new Response(JSON.stringify({ error: "step_id required" }), { status: 400 });
+    }
+    let workflow = await env.DB.prepare(
+      "SELECT * FROM efile_workflow WHERE return_id = ?"
+    ).bind(returnId).first();
+    if (!workflow) {
+      const workflowId = v4_default();
+      await env.DB.prepare(`
+        INSERT INTO efile_workflow (id, return_id, current_step, completed_steps, created_at, updated_at)
+        VALUES (?, ?, ?, '[]', datetime('now'), datetime('now'))
+      `).bind(workflowId, returnId, body.step_id).run();
+      workflow = { id: workflowId, completed_steps: "[]" };
+    }
+    const completedSteps = JSON.parse(workflow.completed_steps || "[]");
+    if (body.completed && !completedSteps.includes(body.step_id)) {
+      completedSteps.push(body.step_id);
+    }
+    await env.DB.prepare(`
+      UPDATE efile_workflow 
+      SET current_step = ?,
+          completed_steps = ?,
+          validation_errors = ?,
+          updated_at = datetime('now')
+      WHERE return_id = ?
+    `).bind(
+      body.step_id,
+      JSON.stringify(completedSteps),
+      JSON.stringify(body.validation_errors || []),
+      returnId
+    ).run();
+    return new Response(JSON.stringify({
+      success: true,
+      current_step: body.step_id,
+      completed_steps: completedSteps
+    }), {
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (error) {
+    console.error("[AI Assistant] Workflow update failed:", error);
+    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  }
+});
+router5.get("/tips", async (req, env) => {
+  const url = new URL(req.url);
+  const context = url.searchParams.get("context") || "general";
+  const tips = {
+    "income": {
+      title: "Income Reporting Tips",
+      tips: [
+        "Report ALL income, even if you didn't receive a form",
+        "W-2 wages go on Form 1040 Line 1",
+        "1099-NEC income requires Schedule C and self-employment tax",
+        "Interest over $1,500 requires Schedule B"
+      ]
+    },
+    "deductions": {
+      title: "Maximize Your Deductions",
+      tips: [
+        "Most taxpayers benefit from the standard deduction ($15,000 single, $30,000 married)",
+        "HSA contributions are deductible (up to $4,300 self / $8,550 family)",
+        "Student loan interest deduction: up to $2,500",
+        "IRA contributions may be deductible (up to $7,000)"
+      ]
+    },
+    "credits": {
+      title: "Don't Miss These Credits",
+      tips: [
+        "Child Tax Credit: $2,000 per child under 17",
+        "EITC: Up to $8,046 for 3+ children",
+        "American Opportunity Credit: $2,500 for college expenses",
+        "Saver's Credit: Up to $1,000 for retirement contributions"
+      ]
+    },
+    "efile": {
+      title: "E-Filing Best Practices",
+      tips: [
+        "E-file with direct deposit for fastest refund (21 days)",
+        "Double-check all Social Security numbers",
+        "Sign and date your return",
+        "Keep copies of all forms and receipts for 3 years"
+      ]
+    }
+  };
+  const contextTips = tips[context] || tips["general"] || {
+    title: "General Tax Tips",
+    tips: [
+      "File on time, even if you can't pay",
+      "Review your return carefully before submitting",
+      "Ask questions if you're unsure about anything",
+      "Keep good records throughout the year"
+    ]
+  };
+  return new Response(JSON.stringify(contextTips), {
+    headers: { "Content-Type": "application/json" }
+  });
+});
+var aiAssistant_default = router5;
+
+// src/routes/efilePrep.ts
+var efilePrepRouter = t();
+efilePrepRouter.post("/prepare", async (req, env) => {
+  try {
+    const body = await req.json();
+    const {
+      client_id,
+      client_name,
+      client_email,
+      client_phone,
+      service_type,
+      return_type = "1040",
+      source = "intake_form",
+      notes,
+      auto_start = true
+    } = body;
+    if (!client_id || !client_name || !client_email) {
+      return new Response(
+        JSON.stringify({ error: "Missing required fields: client_id, client_name, client_email" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+    const now = (/* @__PURE__ */ new Date()).toISOString();
+    const encName = await encryptPII(client_name, env);
+    const encEmail = await encryptPII(client_email, env);
+    const encPhone = client_phone ? await encryptPII(client_phone, env) : null;
+    const existingClient = await env.DB.prepare(
+      "SELECT id FROM clients WHERE email = ?"
+    ).bind(encEmail).first();
+    let clientDbId;
+    if (existingClient) {
+      clientDbId = existingClient.id;
+      console.log(`[E-file Prep] Client exists with ID ${clientDbId}`);
+    } else {
+      const clientResult = await env.DB.prepare(`
+        INSERT INTO clients (
+          full_name, 
+          email, 
+          phone, 
+          status, 
+          source,
+          created_at,
+          updated_at
+        ) VALUES (?, ?, ?, 'intake_submitted', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      `).bind(encName, encEmail, encPhone, source).run();
+      clientDbId = clientResult.meta.last_row_id;
+      console.log(`[E-file Prep] Created new client with ID ${clientDbId}`);
+      await logAudit(env, {
+        user_id: "system",
+        action: "client_created",
+        resource: "clients",
+        resource_id: String(clientDbId),
+        details: { source, service_type },
+        ip_address: req.headers.get("cf-connecting-ip") || "unknown"
+      });
+    }
+    const returnId = v4_default();
+    const taxYear = (/* @__PURE__ */ new Date()).getFullYear() - 1;
+    const returnResult = await env.DB.prepare(`
+      INSERT INTO tax_returns (
+        id,
+        client_id,
+        tax_year,
+        return_type,
+        status,
+        filing_status,
+        service_type,
+        notes,
+        created_at,
+        updated_at
+      ) VALUES (?, ?, ?, ?, 'draft', 'single', ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    `).bind(
+      returnId,
+      clientDbId,
+      taxYear,
+      return_type,
+      service_type || "Tax Preparation",
+      notes || "Created from intake form submission"
+    ).run();
+    console.log(`[E-file Prep] Created return ${returnId} for client ${clientDbId}`);
+    const transmissionId = v4_default();
+    await env.DB.prepare(`
+      INSERT INTO efile_transmissions (
+        id,
+        return_id,
+        client_id,
+        method,
+        status,
+        environment,
+        created_at,
+        updated_at
+      ) VALUES (?, ?, ?, 'DIY', 'created', 'test', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    `).bind(transmissionId, returnId, clientDbId).run();
+    console.log(`[E-file Prep] Created transmission ${transmissionId}`);
+    await logAudit(env, {
+      user_id: "system",
+      action: "efile_prep_initiated",
+      resource: "efile_transmissions",
+      resource_id: transmissionId,
+      details: {
+        return_id: returnId,
+        client_id: clientDbId,
+        return_type,
+        service_type,
+        source
+      },
+      ip_address: req.headers.get("cf-connecting-ip") || "unknown"
+    });
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: "E-file return preparation initiated",
+        data: {
+          client_id: clientDbId,
+          return_id: returnId,
+          transmission_id: transmissionId,
+          status: "created",
+          next_steps: [
+            "Client will receive portal access credentials via email",
+            "Client can upload documents securely through portal",
+            "Return will be prepared and reviewed",
+            "E-file transmission will be submitted to IRS"
+          ]
+        }
+      }),
+      { status: 201, headers: { "Content-Type": "application/json" } }
+    );
+  } catch (err) {
+    console.error("[E-file Prep] Error:", err);
+    return new Response(
+      JSON.stringify({
+        error: "E-file preparation failed",
+        message: err.message
+      }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    );
+  }
+});
+efilePrepRouter.get("/prepare/:client_id/status", async (req, env) => {
+  try {
+    const clientId = req.params.client_id;
+    const result = await env.DB.prepare(`
+      SELECT 
+        tr.id as return_id,
+        tr.return_type,
+        tr.status as return_status,
+        tr.tax_year,
+        et.id as transmission_id,
+        et.status as transmission_status,
+        et.irs_submission_id,
+        tr.created_at
+      FROM tax_returns tr
+      LEFT JOIN efile_transmissions et ON et.return_id = tr.id
+      WHERE tr.client_id = ?
+      ORDER BY tr.created_at DESC
+      LIMIT 1
+    `).bind(clientId).first();
+    if (!result) {
+      return new Response(
+        JSON.stringify({
+          error: "No return found for client",
+          client_id: clientId
+        }),
+        { status: 404, headers: { "Content-Type": "application/json" } }
+      );
+    }
+    return new Response(
+      JSON.stringify({
+        success: true,
+        data: result
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    );
+  } catch (err) {
+    console.error("[E-file Prep] Status check error:", err);
+    return new Response(
+      JSON.stringify({ error: "Status check failed" }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    );
+  }
+});
+var efilePrep_default = efilePrepRouter;
+
+// src/routes/lmsEnrollment.ts
+var lmsEnrollmentRouter = t();
+lmsEnrollmentRouter.post("/enroll", async (req, env) => {
+  try {
+    const body = await req.json();
+    const required = ["firstName", "lastName", "email", "phone", "program", "textbookFormat", "paymentMethod"];
+    const missing = required.filter((field) => !body[field]);
+    if (missing.length > 0) {
+      return new Response(
+        JSON.stringify({ error: `Missing required fields: ${missing.join(", ")}` }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+    const acks = body.acknowledgements;
+    if (!acks || !acks.policies || !acks.conduct || !acks.accreditation || !acks.financialAid || !acks.identity || !acks.data || !acks.absence) {
+      return new Response(
+        JSON.stringify({ error: "All compliance acknowledgments must be accepted" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+    const programMap = {
+      "cert1": { name: "Tax Professional Certificate I", price: 899, duration: 8 },
+      "cert2": { name: "Tax Professional Certificate II", price: 1199, duration: 10 },
+      "practitioner": { name: "Tax Practitioner Comprehensive", price: 1499, duration: 12 },
+      "ea": { name: "Enrolled Agent Exam Preparation", price: 1999, duration: 16 },
+      "bundle": { name: "Tax Professional Bundle", price: 4999, duration: 36 },
+      "aas": { name: "Associate of Applied Science - Taxation & Accounting", price: 27500, duration: 52 }
+    };
+    const program = programMap[body.program];
+    if (!program) {
+      return new Response(
+        JSON.stringify({ error: "Invalid program selection" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+    if (!["physical", "ebook", "bundled"].includes(body.textbookFormat)) {
+      return new Response(
+        JSON.stringify({ error: "Invalid textbook format" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+    const enrollmentId = v4_default();
+    const now = (/* @__PURE__ */ new Date()).toISOString();
+    const encFirstName = await encryptPII(body.firstName, env);
+    const encLastName = await encryptPII(body.lastName, env);
+    const encEmail = await encryptPII(body.email, env);
+    const encPhone = await encryptPII(body.phone, env);
+    const existingStudent = await env.DB.prepare(
+      "SELECT id FROM clients WHERE email = ?"
+    ).bind(encEmail).first();
+    let studentId;
+    if (existingStudent) {
+      studentId = existingStudent.id;
+    } else {
+      const studentResult = await env.DB.prepare(`
+        INSERT INTO clients (
+          name, 
+          email, 
+          phone, 
+          dob,
+          role,
+          created_at,
+          updated_at
+        ) VALUES (?, ?, ?, ?, 'client', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      `).bind(
+        encFirstName + " " + encLastName,
+        encEmail,
+        encPhone,
+        body.dateOfBirth || null
+      ).run();
+      studentId = studentResult.meta.last_row_id || 0;
+    }
+    let textbookCost = 0;
+    if (body.textbookFormat === "physical" || body.textbookFormat === "ebook") {
+      textbookCost = 149.99;
+    }
+    const totalCost = program.price + textbookCost;
+    await env.DB.prepare(`
+      INSERT INTO lms_enrollments (
+        id,
+        student_id,
+        enrollment_type,
+        program_code,
+        tuition_locked,
+        enrollment_fee_locked,
+        materials_fee_locked,
+        total_price_locked,
+        payment_method,
+        payment_plan_installments,
+        status,
+        enrolled_at,
+        created_at,
+        updated_at
+      ) VALUES (?, ?, 'single', ?, ?, 0, ?, ?, ?, ?, 'pending', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    `).bind(
+      enrollmentId,
+      studentId,
+      body.program,
+      program.price,
+      textbookCost,
+      totalCost,
+      body.paymentMethod,
+      body.planLength || null
+    ).run();
+    await env.DB.prepare(`
+      INSERT INTO lms_enrollment_details (
+        enrollment_id,
+        first_name,
+        last_name,
+        email,
+        phone,
+        address,
+        city,
+        state,
+        zip,
+        dob,
+        start_date,
+        textbook_format,
+        acknowledgment_policies,
+        acknowledgment_conduct,
+        acknowledgment_accreditation,
+        acknowledgment_financial_aid,
+        acknowledgment_identity,
+        acknowledgment_data,
+        acknowledgment_absence,
+        created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    `).bind(
+      enrollmentId,
+      encFirstName,
+      encLastName,
+      encEmail,
+      encPhone,
+      null,
+      null,
+      null,
+      null,
+      body.dateOfBirth || null,
+      (/* @__PURE__ */ new Date()).toISOString().split("T")[0],
+      // Start date is today
+      body.textbookFormat,
+      acks.policies ? 1 : 0,
+      acks.conduct ? 1 : 0,
+      acks.accreditation ? 1 : 0,
+      acks.financialAid ? 1 : 0,
+      acks.identity ? 1 : 0,
+      acks.data ? 1 : 0,
+      acks.absence ? 1 : 0
+    ).run();
+    await logAudit(env, {
+      user_id: void 0,
+      action: "lms_enrollment_submitted",
+      entity: "lms_enrollments",
+      entity_id: enrollmentId,
+      details: JSON.stringify({
+        program_code: body.program,
+        program_name: program.name,
+        textbook_format: body.textbookFormat,
+        payment_method: body.paymentMethod,
+        tuition: program.price,
+        textbook_cost: textbookCost,
+        total_cost: totalCost,
+        all_acknowledgments_accepted: true
+      }),
+      ip_address: req.headers.get("cf-connecting-ip") || "unknown"
+    });
+    await sendEnrollmentNotification(env, body, program, enrollmentId);
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: "Enrollment application submitted successfully",
+        data: {
+          enrollment_id: enrollmentId,
+          student_id: studentId,
+          program_name: program.name,
+          tuition: program.price,
+          textbook_format: body.textbookFormat,
+          textbook_cost: textbookCost,
+          total_cost: totalCost,
+          payment_method: body.paymentMethod,
+          status: "pending",
+          next_steps: [
+            `Check email for enrollment confirmation and payment instructions`,
+            `${body.textbookFormat === "bundled" ? "Textbook access will be provided upon enrollment" : "Complete textbook purchase or access setup"}`,
+            "Complete payment by the deadline provided",
+            "LMS login credentials will be sent within 24 hours of payment clearance",
+            "Course materials will be available on your start date"
+          ]
+        }
+      }),
+      { status: 201, headers: { "Content-Type": "application/json" } }
+    );
+  } catch (err) {
+    console.error("[LMS Enrollment] Error:", err);
+    return new Response(
+      JSON.stringify({
+        error: "Enrollment submission failed",
+        message: err.message
+      }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    );
+  }
+});
+lmsEnrollmentRouter.get("/enrollments/:id", async (req, env) => {
+  try {
+    const enrollmentId = req.params.id;
+    const enrollment = await env.DB.prepare(`
+      SELECT 
+        e.id,
+        e.student_id,
+        e.program_code,
+        e.tuition_locked,
+        e.total_price_locked,
+        e.payment_method,
+        e.status,
+        e.enrolled_at,
+        e.access_granted_at,
+        e.completion_date
+      FROM lms_enrollments e
+      WHERE e.id = ?
+    `).bind(enrollmentId).first();
+    if (!enrollment) {
+      return new Response(
+        JSON.stringify({ error: "Enrollment not found" }),
+        { status: 404, headers: { "Content-Type": "application/json" } }
+      );
+    }
+    return new Response(
+      JSON.stringify({ success: true, data: enrollment }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    );
+  } catch (err) {
+    console.error("[LMS Enrollment] Get error:", err);
+    return new Response(
+      JSON.stringify({ error: "Failed to retrieve enrollment" }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    );
+  }
+});
+lmsEnrollmentRouter.post("/certificates/generate", async (req, env) => {
+  try {
+    const body = await req.json();
+    const { enrollment_id, student_name, course_title, completion_date, hours_completed, instructor_name } = body;
+    if (!enrollment_id || !student_name || !course_title) {
+      return new Response(
+        JSON.stringify({ error: "Missing required fields" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+    const certificateId = v4_default();
+    const verificationCode = generateVerificationCode();
+    const now = (/* @__PURE__ */ new Date()).toISOString();
+    await env.DB.prepare(`
+      INSERT INTO lms_certificates (
+        id,
+        enrollment_id,
+        student_name,
+        course_title,
+        completion_date,
+        hours_completed,
+        instructor_name,
+        verification_code,
+        issued_at,
+        status,
+        created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, 'active', CURRENT_TIMESTAMP)
+    `).bind(
+      certificateId,
+      enrollment_id,
+      await encryptPII(student_name, env),
+      course_title,
+      completion_date || now,
+      hours_completed || 0,
+      instructor_name || "Ross Tax Academy",
+      verificationCode
+    ).run();
+    await env.DB.prepare(`
+      UPDATE lms_enrollments 
+      SET status = 'completed', completion_date = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).bind(completion_date || now, enrollment_id).run();
+    await logAudit(env, {
+      user_id: void 0,
+      action: "lms_certificate_issued",
+      entity: "lms_certificates",
+      entity_id: certificateId,
+      details: JSON.stringify({
+        enrollment_id,
+        course_title,
+        verification_code: verificationCode
+      }),
+      ip_address: req.headers.get("cf-connecting-ip") || "unknown"
+    });
+    const certificateData = {
+      certificate_id: certificateId,
+      student_name,
+      course_title,
+      completion_date: completion_date || now,
+      hours_completed: hours_completed || 0,
+      verification_code: verificationCode,
+      verification_url: `https://rosstaxacademy.com/verify?code=${verificationCode}`,
+      qr_code_data: `${verificationCode}|${course_title}|${student_name}`,
+      instructor_name: instructor_name || "Ross Tax Academy",
+      issued_date: now
+    };
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: "Certificate generated successfully",
+        data: certificateData
+      }),
+      { status: 201, headers: { "Content-Type": "application/json" } }
+    );
+  } catch (err) {
+    console.error("[LMS Certificate] Generation error:", err);
+    return new Response(
+      JSON.stringify({
+        error: "Certificate generation failed",
+        message: err.message
+      }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    );
+  }
+});
+lmsEnrollmentRouter.get("/certificates/verify/:code", async (req, env) => {
+  try {
+    const verificationCode = req.params.code;
+    const certificate = await env.DB.prepare(`
+      SELECT 
+        id,
+        course_title,
+        completion_date,
+        hours_completed,
+        issued_at,
+        status
+      FROM lms_certificates
+      WHERE verification_code = ?
+    `).bind(verificationCode).first();
+    if (!certificate) {
+      return new Response(
+        JSON.stringify({
+          valid: false,
+          message: "Certificate not found or invalid verification code"
+        }),
+        { status: 404, headers: { "Content-Type": "application/json" } }
+      );
+    }
+    if (certificate.status !== "active") {
+      return new Response(
+        JSON.stringify({
+          valid: false,
+          message: "Certificate has been revoked or is no longer active"
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    }
+    return new Response(
+      JSON.stringify({
+        valid: true,
+        message: "Certificate verified successfully",
+        data: {
+          certificate_id: certificate.id,
+          course_title: certificate.course_title,
+          completion_date: certificate.completion_date,
+          hours_completed: certificate.hours_completed,
+          issued_at: certificate.issued_at,
+          verified_at: (/* @__PURE__ */ new Date()).toISOString()
+        }
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    );
+  } catch (err) {
+    console.error("[LMS Certificate] Verification error:", err);
+    return new Response(
+      JSON.stringify({ error: "Verification failed" }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    );
+  }
+});
+function generateVerificationCode() {
+  const prefix = "RTA";
+  const timestamp = Date.now().toString(36).toUpperCase();
+  const random = Math.random().toString(36).substring(2, 8).toUpperCase();
+  return `${prefix}-${timestamp}-${random}`;
+}
+__name(generateVerificationCode, "generateVerificationCode");
+async function sendEnrollmentNotification(env, enrollmentData, course, enrollmentId) {
+  try {
+    if (!env.TO_EMAIL) return;
+    const emailHtml = `
+      <h2>New Academy Enrollment</h2>
+      <p><strong>Enrollment ID:</strong> ${enrollmentId}</p>
+      <p><strong>Student:</strong> ${enrollmentData.first_name} ${enrollmentData.last_name}</p>
+      <p><strong>Email:</strong> ${enrollmentData.email}</p>
+      <p><strong>Phone:</strong> ${enrollmentData.phone}</p>
+      <p><strong>Course:</strong> ${course.title}</p>
+      <p><strong>Tuition:</strong> $${course.price}</p>
+      <p><strong>Payment Method:</strong> ${enrollmentData.payment_method}</p>
+      <p><strong>Start Date:</strong> ${enrollmentData.start_date}</p>
+      <p><strong>Financial Aid:</strong> ${enrollmentData.financial_aid || "None"}</p>
+    `;
+    console.log("[LMS] Enrollment notification:", emailHtml);
+  } catch (err) {
+    console.error("[LMS] Notification error:", err);
+  }
+}
+__name(sendEnrollmentNotification, "sendEnrollmentNotification");
+var lmsEnrollment_default = lmsEnrollmentRouter;
 
 // src/health.ts
 function healthRoute() {
@@ -4043,7 +8350,7 @@ function generateTOTPSecret() {
   return secret.base32;
 }
 __name(generateTOTPSecret, "generateTOTPSecret");
-async function getKey(env) {
+async function getKey2(env) {
   const keyData = new TextEncoder().encode(env.ENCRYPTION_KEY);
   return await crypto.subtle.importKey(
     "raw",
@@ -4053,10 +8360,10 @@ async function getKey(env) {
     ["encrypt", "decrypt"]
   );
 }
-__name(getKey, "getKey");
+__name(getKey2, "getKey");
 async function encrypt(text, env) {
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const key = await getKey(env);
+  const key = await getKey2(env);
   const encoded = new TextEncoder().encode(text);
   const ciphertext = await crypto.subtle.encrypt(
     { name: "AES-GCM", iv },
@@ -4070,7 +8377,7 @@ async function decrypt(data, env) {
   const raw2 = atob(data);
   const iv = new Uint8Array([...raw2].slice(0, 12).map((c) => c.charCodeAt(0)));
   const ciphertext = new Uint8Array([...raw2].slice(12).map((c) => c.charCodeAt(0)));
-  const key = await getKey(env);
+  const key = await getKey2(env);
   const decrypted = await crypto.subtle.decrypt(
     { name: "AES-GCM", iv },
     key,
@@ -4382,17 +8689,17 @@ var compose = /* @__PURE__ */ __name((middleware, onError, onNotFound) => {
 var GET_MATCH_RESULT = /* @__PURE__ */ Symbol();
 
 // node_modules/hono/dist/utils/body.js
-var parseBody = /* @__PURE__ */ __name(async (request2, options = /* @__PURE__ */ Object.create(null)) => {
+var parseBody = /* @__PURE__ */ __name(async (request, options = /* @__PURE__ */ Object.create(null)) => {
   const { all = false, dot = false } = options;
-  const headers = request2 instanceof HonoRequest ? request2.raw.headers : request2.headers;
+  const headers = request instanceof HonoRequest ? request.raw.headers : request.headers;
   const contentType = headers.get("Content-Type");
   if (contentType?.startsWith("multipart/form-data") || contentType?.startsWith("application/x-www-form-urlencoded")) {
-    return parseFormData(request2, { all, dot });
+    return parseFormData(request, { all, dot });
   }
   return {};
 }, "parseBody");
-async function parseFormData(request2, options) {
-  const formData = await request2.formData();
+async function parseFormData(request, options) {
+  const formData = await request.formData();
   if (formData) {
     return convertFormDataToBodyData(formData, options);
   }
@@ -4519,8 +8826,8 @@ var tryDecode = /* @__PURE__ */ __name((str, decoder) => {
   }
 }, "tryDecode");
 var tryDecodeURI = /* @__PURE__ */ __name((str) => tryDecode(str, decodeURI), "tryDecodeURI");
-var getPath = /* @__PURE__ */ __name((request2) => {
-  const url = request2.url;
+var getPath = /* @__PURE__ */ __name((request) => {
+  const url = request.url;
   const start = url.indexOf("/", url.indexOf(":") + 4);
   let i = start;
   for (; i < url.length; i++) {
@@ -4535,8 +8842,8 @@ var getPath = /* @__PURE__ */ __name((request2) => {
   }
   return url.slice(start, i);
 }, "getPath");
-var getPathNoStrict = /* @__PURE__ */ __name((request2) => {
-  const result = getPath(request2);
+var getPathNoStrict = /* @__PURE__ */ __name((request) => {
+  const result = getPath(request);
   return result.length > 1 && result.at(-1) === "/" ? result.slice(0, -1) : result;
 }, "getPathNoStrict");
 var mergePath = /* @__PURE__ */ __name((base, sub, ...rest) => {
@@ -4693,8 +9000,8 @@ var HonoRequest = class {
    */
   path;
   bodyCache = {};
-  constructor(request2, path = "/", matchResult = [[]]) {
-    this.raw = request2;
+  constructor(request, path = "/", matchResult = [[]]) {
+    this.raw = request;
     this.path = path;
     this.#matchResult = matchResult;
     this.#validatedData = {};
@@ -5610,7 +9917,7 @@ var Hono = class _Hono {
       } else {
         optionHandler = options.optionHandler;
         if (options.replaceRequest === false) {
-          replaceRequest = /* @__PURE__ */ __name((request2) => request2, "replaceRequest");
+          replaceRequest = /* @__PURE__ */ __name((request) => request, "replaceRequest");
         } else {
           replaceRequest = options.replaceRequest;
         }
@@ -5630,10 +9937,10 @@ var Hono = class _Hono {
     replaceRequest ||= (() => {
       const mergedPath = mergePath(this._basePath, path);
       const pathPrefixLength = mergedPath === "/" ? 0 : mergedPath.length;
-      return (request2) => {
-        const url = new URL(request2.url);
+      return (request) => {
+        const url = new URL(request.url);
         url.pathname = url.pathname.slice(pathPrefixLength) || "/";
-        return new Request(url, request2);
+        return new Request(url, request);
       };
     })();
     const handler = /* @__PURE__ */ __name(async (c, next) => {
@@ -5659,13 +9966,13 @@ var Hono = class _Hono {
     }
     throw err;
   }
-  #dispatch(request2, executionCtx, env, method) {
+  #dispatch(request, executionCtx, env, method) {
     if (method === "HEAD") {
-      return (async () => new Response(null, await this.#dispatch(request2, executionCtx, env, "GET")))();
+      return (async () => new Response(null, await this.#dispatch(request, executionCtx, env, "GET")))();
     }
-    const path = this.getPath(request2, { env });
+    const path = this.getPath(request, { env });
     const matchResult = this.router.match(method, path);
-    const c = new Context(request2, {
+    const c = new Context(request, {
       path,
       matchResult,
       env,
@@ -5711,8 +10018,8 @@ var Hono = class _Hono {
    * @returns {Response | Promise<Response>} response of request
    *
    */
-  fetch = /* @__PURE__ */ __name((request2, ...rest) => {
-    return this.#dispatch(request2, rest[1], rest[0], request2.method);
+  fetch = /* @__PURE__ */ __name((request, ...rest) => {
+    return this.#dispatch(request, rest[1], rest[0], request.method);
   }, "fetch");
   /**
    * `.request()` is a useful method for testing.
@@ -5758,8 +10065,8 @@ var Hono = class _Hono {
    * @see https://developers.cloudflare.com/workers/reference/migrate-to-module-workers/
    */
   fire = /* @__PURE__ */ __name(() => {
-    addEventListener("fetch", (event2) => {
-      event2.respondWith(this.#dispatch(event2.request, event2, void 0, event2.request.method));
+    addEventListener("fetch", (event) => {
+      event.respondWith(this.#dispatch(event.request, event, void 0, event.request.method));
     });
   }, "fire");
 };
@@ -6170,20 +10477,20 @@ var SmartRouter = class {
     let i = 0;
     let res;
     for (; i < len; i++) {
-      const router = routers[i];
+      const router6 = routers[i];
       try {
         for (let i2 = 0, len2 = routes.length; i2 < len2; i2++) {
-          router.add(...routes[i2]);
+          router6.add(...routes[i2]);
         }
-        res = router.match(method, path);
+        res = router6.match(method, path);
       } catch (e) {
         if (e instanceof UnsupportedPathError) {
           continue;
         }
         throw e;
       }
-      this.match = router.match.bind(router);
-      this.#routers = [router];
+      this.match = router6.match.bind(router6);
+      this.#routers = [router6];
       this.#routes = void 0;
       break;
     }
@@ -8034,55 +12341,6 @@ async function fetchIrsMemos() {
 }
 __name(fetchIrsMemos, "fetchIrsMemos");
 
-// src/utils/encryption.ts
-async function getKey2(env) {
-  const keyData = new TextEncoder().encode(env.ENCRYPTION_KEY || "change-this-32-character-key!!");
-  return await crypto.subtle.importKey(
-    "raw",
-    keyData.slice(0, 32),
-    // Ensure 32 bytes for AES-256
-    { name: "AES-GCM" },
-    false,
-    ["encrypt", "decrypt"]
-  );
-}
-__name(getKey2, "getKey");
-async function encryptPII(text, env) {
-  if (!text) return "";
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const key = await getKey2(env);
-  const encoded = new TextEncoder().encode(text);
-  const ciphertext = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv },
-    key,
-    encoded
-  );
-  const combined = new Uint8Array(iv.length + ciphertext.byteLength);
-  combined.set(iv, 0);
-  combined.set(new Uint8Array(ciphertext), iv.length);
-  return btoa(String.fromCharCode(...combined));
-}
-__name(encryptPII, "encryptPII");
-async function decryptPII(encryptedData, env) {
-  if (!encryptedData) return "";
-  try {
-    const combined = Uint8Array.from(atob(encryptedData), (c) => c.charCodeAt(0));
-    const iv = combined.slice(0, 12);
-    const ciphertext = combined.slice(12);
-    const key = await getKey2(env);
-    const decrypted = await crypto.subtle.decrypt(
-      { name: "AES-GCM", iv },
-      key,
-      ciphertext
-    );
-    return new TextDecoder().decode(decrypted);
-  } catch (error) {
-    console.error("Decryption failed:", error);
-    return "";
-  }
-}
-__name(decryptPII, "decryptPII");
-
 // src/routes/crm.ts
 async function handleCrmIntakes(req, env) {
   const authResult = await requireStaff(req, env);
@@ -8467,6 +12725,642 @@ lmsRouter.put("/config", requireStaff, async (req, env) => {
   lmsConfig = { ...lmsConfig, ...typeof body === "object" && body !== null ? body : {} };
   await logAudit(env, { action: "lms_config_update", entity: "lms_config", entity_id: "lms" });
   return new Response(JSON.stringify(lmsConfig), { headers: { "Content-Type": "application/json" } });
+});
+async function hasPermission(env, userId, userType, permissionName) {
+  if (!env.DB) return false;
+  try {
+    const result = await env.DB.prepare(`
+      SELECT COUNT(*) as count FROM lms_role_permissions
+      WHERE role_id IN (
+        SELECT role_id FROM lms_user_roles 
+        WHERE user_id = ? AND user_type = ?
+      )
+      AND permission_id IN (
+        SELECT id FROM lms_permissions 
+        WHERE permission_name = ?
+      )
+    `).bind(userId, userType, permissionName).first();
+    return result && result.count > 0;
+  } catch (e) {
+    console.error("Permission check failed:", e);
+    return false;
+  }
+}
+__name(hasPermission, "hasPermission");
+async function getUserRoles(env, userId, userType) {
+  if (!env.DB) return [];
+  try {
+    const result = await env.DB.prepare(`
+      SELECT r.* FROM lms_roles r
+      JOIN lms_user_roles ur ON r.id = ur.role_id
+      WHERE ur.user_id = ? AND ur.user_type = ?
+    `).bind(userId, userType).all();
+    return result?.results || [];
+  } catch (e) {
+    console.error("Get roles failed:", e);
+    return [];
+  }
+}
+__name(getUserRoles, "getUserRoles");
+async function executeWorkflow(env, workflowId, entityType, entityId) {
+  if (!env.DB) return null;
+  try {
+    const workflow = await env.DB.prepare("SELECT * FROM lms_workflows WHERE id = ?").bind(workflowId).first();
+    if (!workflow) return null;
+    const steps = await env.DB.prepare(`
+      SELECT * FROM lms_workflow_steps 
+      WHERE workflow_id = ? 
+      ORDER BY step_order ASC
+    `).bind(workflowId).all();
+    const executionId = `exec-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    for (const step of steps?.results || []) {
+      await env.DB.prepare(`
+        INSERT INTO lms_workflow_executions 
+        (id, workflow_id, entity_type, entity_id, execution_status, created_at)
+        VALUES (?, ?, ?, ?, 'pending', datetime('now'))
+      `).bind(executionId, workflowId, entityType, entityId).run();
+      if (step.auto_execute === 1) {
+        await executeWorkflowStep(env, executionId, step, entityType, entityId);
+      }
+    }
+    return executionId;
+  } catch (e) {
+    console.error("Workflow execution failed:", e);
+    return null;
+  }
+}
+__name(executeWorkflow, "executeWorkflow");
+async function executeWorkflowStep(env, executionId, step, entityType, entityId) {
+  if (!env.DB) return;
+  try {
+    if (step.step_type === "auto_assign_role") {
+      const roles = await env.DB.prepare(`
+        SELECT * FROM lms_roles WHERE role_name = 'student'
+      `).first();
+      if (roles) {
+        await env.DB.prepare(`
+          INSERT INTO lms_user_roles (user_id, role_id, user_type, assigned_at)
+          VALUES (?, ?, 'client', datetime('now'))
+        `).bind(parseInt(entityId), roles.id).run();
+      }
+    } else if (step.step_type === "grant_access") {
+      await env.DB.prepare(`
+        INSERT INTO lms_content_items (id, library_id, title, content_type, view_count, created_at)
+        VALUES (?, ?, ?, 'welcome', 0, datetime('now'))
+      `).bind(`item-${entityId}`, "lib-faq", `Welcome ${entityId}`).run();
+    } else if (step.step_type === "send_email") {
+      console.log(`[WORKFLOW] Sending email for ${entityType}:${entityId}`);
+    } else if (step.step_type === "create_task") {
+      console.log(`[WORKFLOW] Creating task for ${entityType}:${entityId}`);
+    }
+    await env.DB.prepare(`
+      UPDATE lms_workflow_executions 
+      SET execution_status = 'completed' 
+      WHERE id = ?
+    `).bind(executionId).run();
+  } catch (e) {
+    console.error("Workflow step execution failed:", e);
+  }
+}
+__name(executeWorkflowStep, "executeWorkflowStep");
+lmsRouter.post("/enroll", async (req, env) => {
+  try {
+    const body = await req.json();
+    const { student_id, student_email, program_id } = body;
+    if (!student_id || !program_id) {
+      return new Response(JSON.stringify({ error: "Missing required fields" }), { status: 400 });
+    }
+    const enrollmentId = `enroll-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    await env.DB.prepare(`
+      INSERT INTO lms_degree_enrollments 
+      (id, program_id, student_id, enrollment_status, current_semester, total_credits_completed, cumulative_gpa)
+      VALUES (?, ?, ?, 'active', 1, 0.0, 0.0)
+    `).bind(enrollmentId, program_id, student_id).run();
+    await executeWorkflow(env, "workflow-enrollment", "degree_enrollment", enrollmentId);
+    await logAudit(env, {
+      action: "enrollment_created",
+      entity: "degree_enrollment",
+      entity_id: enrollmentId,
+      details: JSON.stringify({ student_id, program_id })
+    });
+    return new Response(JSON.stringify({
+      success: true,
+      enrollment_id: enrollmentId,
+      message: "Enrollment successful. Workflow triggered."
+    }), { status: 201, headers: { "Content-Type": "application/json" } });
+  } catch (error) {
+    console.error("Enrollment error:", error);
+    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  }
+});
+lmsRouter.get("/enrollments/:studentId", async (req, env) => {
+  try {
+    const studentId = parseInt(req.params.studentId);
+    const enrollments2 = await env.DB.prepare(`
+      SELECT de.*, dp.program_name, dp.degree_type, dp.total_credits_required
+      FROM lms_degree_enrollments de
+      JOIN lms_degree_programs dp ON de.program_id = dp.id
+      WHERE de.student_id = ?
+      ORDER BY de.created_at DESC
+    `).bind(studentId).all();
+    return new Response(JSON.stringify(enrollments2?.results || []), {
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (error) {
+    console.error("Get enrollments error:", error);
+    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  }
+});
+lmsRouter.get("/roles", async (req, env) => {
+  try {
+    const roles = await env.DB.prepare("SELECT * FROM lms_roles ORDER BY role_name ASC").all();
+    return new Response(JSON.stringify(roles?.results || []), {
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (error) {
+    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  }
+});
+lmsRouter.get("/user-roles/:userId/:userType", async (req, env) => {
+  try {
+    const userId = parseInt(req.params.userId);
+    const userType = req.params.userType;
+    const roles = await getUserRoles(env, userId, userType);
+    return new Response(JSON.stringify(roles), {
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (error) {
+    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  }
+});
+lmsRouter.post("/assign-role", async (req, env) => {
+  try {
+    const body = await req.json();
+    const { user_id, user_type, role_id, expiration_date } = body;
+    if (!user_id || !user_type || !role_id) {
+      return new Response(JSON.stringify({ error: "Missing required fields" }), { status: 400 });
+    }
+    const assignmentId = `assign-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    await env.DB.prepare(`
+      INSERT INTO lms_user_roles 
+      (id, user_id, role_id, user_type, assigned_at, expiration_date)
+      VALUES (?, ?, ?, ?, datetime('now'), ?)
+    `).bind(assignmentId, user_id, role_id, user_type, expiration_date || null).run();
+    await logAudit(env, {
+      action: "role_assigned",
+      entity: "user_role",
+      entity_id: assignmentId,
+      user_id,
+      details: JSON.stringify({ role_id, user_type })
+    });
+    return new Response(JSON.stringify({ success: true, assignment_id: assignmentId }), { status: 201 });
+  } catch (error) {
+    console.error("Assign role error:", error);
+    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  }
+});
+lmsRouter.get("/check-permission/:userId/:userType/:permissionName", async (req, env) => {
+  try {
+    const userId = parseInt(req.params.userId);
+    const userType = req.params.userType;
+    const permissionName = req.params.permissionName;
+    const hasPermissionResult = await hasPermission(env, userId, userType, permissionName);
+    return new Response(JSON.stringify({
+      user_id: userId,
+      user_type: userType,
+      permission: permissionName,
+      has_permission: hasPermissionResult
+    }), { headers: { "Content-Type": "application/json" } });
+  } catch (error) {
+    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  }
+});
+lmsRouter.get("/libraries", async (req, env) => {
+  try {
+    const libraries = await env.DB.prepare(`
+      SELECT cl.*, COUNT(ci.id) as item_count
+      FROM lms_content_libraries cl
+      LEFT JOIN lms_content_items ci ON cl.id = ci.library_id
+      GROUP BY cl.id
+      ORDER BY cl.library_name ASC
+    `).all();
+    return new Response(JSON.stringify(libraries?.results || []), {
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (error) {
+    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  }
+});
+lmsRouter.get("/library/:libraryId/items", async (req, env) => {
+  try {
+    const libraryId = req.params.libraryId;
+    const search = new URL(req.url).searchParams.get("search") || "";
+    const category = new URL(req.url).searchParams.get("category") || "";
+    const limit = parseInt(new URL(req.url).searchParams.get("limit") || "50");
+    let query = `
+      SELECT * FROM lms_content_items
+      WHERE library_id = ?
+    `;
+    const params = [libraryId];
+    if (search) {
+      query += ` AND (title LIKE ? OR content_type LIKE ?)`;
+      params.push(`%${search}%`, `%${search}%`);
+    }
+    query += ` ORDER BY view_count DESC LIMIT ?`;
+    params.push(limit);
+    const items = await env.DB.prepare(query).bind(...params).all();
+    return new Response(JSON.stringify(items?.results || []), {
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (error) {
+    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  }
+});
+lmsRouter.post("/library/item", async (req, env) => {
+  try {
+    const body = await req.json();
+    const { library_id, title, content_type, requires_approval } = body;
+    if (!library_id || !title) {
+      return new Response(JSON.stringify({ error: "Missing required fields" }), { status: 400 });
+    }
+    const itemId = `item-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    await env.DB.prepare(`
+      INSERT INTO lms_content_items 
+      (id, library_id, title, content_type, requires_approval, view_count, created_at)
+      VALUES (?, ?, ?, ?, ?, 0, datetime('now'))
+    `).bind(itemId, library_id, title, content_type || "document", requires_approval ? 1 : 0).run();
+    return new Response(JSON.stringify({
+      success: true,
+      item_id: itemId,
+      requires_approval: requires_approval || false
+    }), { status: 201 });
+  } catch (error) {
+    console.error("Create content error:", error);
+    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  }
+});
+lmsRouter.get("/faq", async (req, env) => {
+  try {
+    const categories = await env.DB.prepare(`
+      SELECT fc.*, COUNT(fi.id) as item_count
+      FROM lms_faq_categories fc
+      LEFT JOIN lms_faq_items fi ON fc.id = fi.category_id
+      GROUP BY fc.id
+      ORDER BY fc.category_order ASC
+    `).all();
+    const result = [];
+    for (const cat of categories?.results || []) {
+      const items = await env.DB.prepare(`
+        SELECT * FROM lms_faq_items
+        WHERE category_id = ?
+        ORDER BY is_featured DESC
+      `).bind(cat.id).all();
+      result.push({
+        category: cat,
+        items: items?.results || []
+      });
+    }
+    return new Response(JSON.stringify(result), {
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (error) {
+    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  }
+});
+lmsRouter.post("/faq/:faqId/helpful", async (req, env) => {
+  try {
+    const faqId = req.params.faqId;
+    const body = await req.json();
+    const { is_helpful } = body;
+    if (typeof is_helpful !== "boolean") {
+      return new Response(JSON.stringify({ error: "Invalid helpful flag" }), { status: 400 });
+    }
+    if (is_helpful) {
+      await env.DB.prepare(`
+        UPDATE lms_faq_items 
+        SET helpful_count = helpful_count + 1 
+        WHERE id = ?
+      `).bind(faqId).run();
+    } else {
+      await env.DB.prepare(`
+        UPDATE lms_faq_items 
+        SET not_helpful_count = not_helpful_count + 1 
+        WHERE id = ?
+      `).bind(faqId).run();
+    }
+    return new Response(JSON.stringify({ success: true }), { status: 200 });
+  } catch (error) {
+    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  }
+});
+lmsRouter.post("/support/ticket", async (req, env) => {
+  try {
+    const body = await req.json();
+    const { student_id, subject, category, priority } = body;
+    if (!student_id || !subject) {
+      return new Response(JSON.stringify({ error: "Missing required fields" }), { status: 400 });
+    }
+    const ticketId = `ticket-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    const ticketNumber = `TICKET-${(/* @__PURE__ */ new Date()).toISOString().split("T")[0].replace(/-/g, "")}-${String(Date.now()).slice(-4)}`;
+    await env.DB.prepare(`
+      INSERT INTO lms_support_tickets 
+      (id, ticket_number, student_id, subject, category, priority, status, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, 'open', datetime('now'), datetime('now'))
+    `).bind(ticketId, ticketNumber, student_id, subject, category || "general", priority || "normal").run();
+    return new Response(JSON.stringify({
+      success: true,
+      ticket_id: ticketId,
+      ticket_number: ticketNumber
+    }), { status: 201 });
+  } catch (error) {
+    console.error("Create ticket error:", error);
+    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  }
+});
+lmsRouter.get("/support/tickets/:studentId", async (req, env) => {
+  try {
+    const studentId = parseInt(req.params.studentId);
+    const tickets = await env.DB.prepare(`
+      SELECT * FROM lms_support_tickets
+      WHERE student_id = ?
+      ORDER BY created_at DESC
+      LIMIT 50
+    `).bind(studentId).all();
+    return new Response(JSON.stringify(tickets?.results || []), {
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (error) {
+    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  }
+});
+lmsRouter.post("/support/ticket/:ticketId/message", async (req, env) => {
+  try {
+    const ticketId = req.params.ticketId;
+    const body = await req.json();
+    const { sender_id, sender_type, message, is_internal_note } = body;
+    if (!sender_id || !message) {
+      return new Response(JSON.stringify({ error: "Missing required fields" }), { status: 400 });
+    }
+    const messageId = `msg-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    await env.DB.prepare(`
+      INSERT INTO lms_support_messages 
+      (id, ticket_id, sender_id, sender_type, message, is_internal_note, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+    `).bind(messageId, ticketId, sender_id, sender_type || "student", message, is_internal_note ? 1 : 0).run();
+    if (sender_type === "staff") {
+      await env.DB.prepare(`
+        UPDATE lms_support_tickets 
+        SET status = 'in_progress', updated_at = datetime('now')
+        WHERE id = ? AND status = 'open'
+      `).bind(ticketId).run();
+    }
+    return new Response(JSON.stringify({ success: true, message_id: messageId }), { status: 201 });
+  } catch (error) {
+    console.error("Add message error:", error);
+    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  }
+});
+lmsRouter.get("/instructors", async (req, env) => {
+  try {
+    const instructors = await env.DB.prepare(`
+      SELECT * FROM lms_ai_instructors
+      ORDER BY instructor_name ASC
+    `).all();
+    return new Response(JSON.stringify(instructors?.results || []), {
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (error) {
+    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  }
+});
+lmsRouter.get("/lectures/:courseId", async (req, env) => {
+  try {
+    const courseId = req.params.courseId;
+    const lectures = await env.DB.prepare(`
+      SELECT wl.*, ai.instructor_name, ai.instructor_title, ai.voice_model
+      FROM lms_weekly_lectures wl
+      JOIN lms_ai_instructors ai ON wl.instructor_id = ai.id
+      WHERE wl.course_id = ?
+      ORDER BY wl.lecture_week ASC
+    `).bind(courseId).all();
+    return new Response(JSON.stringify(lectures?.results || []), {
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (error) {
+    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  }
+});
+lmsRouter.get("/exams/:courseId", async (req, env) => {
+  try {
+    const courseId = req.params.courseId;
+    const exams = await env.DB.prepare(`
+      SELECT * FROM lms_exams
+      WHERE course_id = ?
+      ORDER BY exam_type DESC
+    `).bind(courseId).all();
+    return new Response(JSON.stringify(exams?.results || []), {
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (error) {
+    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  }
+});
+lmsRouter.post("/exam/:examId/attempt", async (req, env) => {
+  try {
+    const examId = req.params.examId;
+    const body = await req.json();
+    const { student_id } = body;
+    if (!student_id) {
+      return new Response(JSON.stringify({ error: "Missing student_id" }), { status: 400 });
+    }
+    const exam = await env.DB.prepare("SELECT * FROM lms_exams WHERE id = ?").bind(examId).first();
+    if (!exam) {
+      return new Response(JSON.stringify({ error: "Exam not found" }), { status: 404 });
+    }
+    const attemptCount = await env.DB.prepare(`
+      SELECT COUNT(*) as count FROM lms_exam_attempts
+      WHERE exam_id = ? AND student_id = ? AND status IN ('submitted', 'graded')
+    `).bind(examId, student_id).first();
+    if (attemptCount && attemptCount.count >= exam.attempts_allowed) {
+      return new Response(JSON.stringify({ error: "Attempt limit reached" }), { status: 400 });
+    }
+    const attemptId = `attempt-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    const attemptNumber = (attemptCount?.count || 0) + 1;
+    await env.DB.prepare(`
+      INSERT INTO lms_exam_attempts 
+      (id, exam_id, student_id, attempt_number, status, started_at)
+      VALUES (?, ?, ?, ?, 'in_progress', datetime('now'))
+    `).bind(attemptId, examId, student_id, attemptNumber).run();
+    return new Response(JSON.stringify({
+      success: true,
+      attempt_id: attemptId,
+      attempt_number: attemptNumber
+    }), { status: 201 });
+  } catch (error) {
+    console.error("Start exam error:", error);
+    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  }
+});
+lmsRouter.post("/exam/attempt/:attemptId/submit", async (req, env) => {
+  try {
+    const attemptId = req.params.attemptId;
+    const body = await req.json();
+    const { answers } = body;
+    if (!Array.isArray(answers)) {
+      return new Response(JSON.stringify({ error: "Invalid answers format" }), { status: 400 });
+    }
+    const attempt = await env.DB.prepare(`
+      SELECT ea.*, le.total_points
+      FROM lms_exam_attempts ea
+      JOIN lms_exams le ON ea.exam_id = le.id
+      WHERE ea.id = ?
+    `).bind(attemptId).first();
+    if (!attempt) {
+      return new Response(JSON.stringify({ error: "Attempt not found" }), { status: 404 });
+    }
+    let pointsEarned = 0;
+    for (const answer of answers) {
+      const { question_id, student_answer } = answer;
+      const question = await env.DB.prepare(`
+        SELECT * FROM lms_exam_questions WHERE id = ?
+      `).bind(question_id).first();
+      if (question) {
+        let isCorrect = 0;
+        let pointsAwarded = 0;
+        if (question.question_type === "multiple_choice" || question.question_type === "true_false") {
+          isCorrect = student_answer === question.correct_answer ? 1 : 0;
+          pointsAwarded = isCorrect ? question.points : 0;
+          pointsEarned += pointsAwarded;
+        }
+        const answerId = `ans-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+        await env.DB.prepare(`
+          INSERT INTO lms_exam_answers 
+          (id, attempt_id, question_id, student_answer, is_correct, points_awarded)
+          VALUES (?, ?, ?, ?, ?, ?)
+        `).bind(answerId, attemptId, question_id, student_answer, isCorrect, pointsAwarded).run();
+      }
+    }
+    const scorePercentage = pointsEarned / attempt.total_points * 100;
+    await env.DB.prepare(`
+      UPDATE lms_exam_attempts 
+      SET status = 'submitted', submitted_at = datetime('now'), score = ?
+      WHERE id = ?
+    `).bind(scorePercentage, attemptId).run();
+    return new Response(JSON.stringify({
+      success: true,
+      points_earned: pointsEarned,
+      total_points: attempt.total_points,
+      score_percentage: scorePercentage.toFixed(2),
+      message: "Exam submitted. Auto-graded items scored."
+    }), { status: 200 });
+  } catch (error) {
+    console.error("Submit exam error:", error);
+    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  }
+});
+lmsRouter.get("/degree-programs", async (req, env) => {
+  try {
+    const programs = await env.DB.prepare(`
+      SELECT * FROM lms_degree_programs
+      ORDER BY program_name ASC
+    `).all();
+    return new Response(JSON.stringify(programs?.results || []), {
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (error) {
+    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  }
+});
+lmsRouter.get("/degree-program/:programId/curriculum", async (req, env) => {
+  try {
+    const programId = req.params.programId;
+    const curriculum = await env.DB.prepare(`
+      SELECT dc.*, dlc.course_name, dlc.credit_hours, dlc.course_level
+      FROM lms_degree_curriculum dc
+      JOIN lms_degree_courses dlc ON dc.course_id = dlc.id
+      WHERE dc.program_id = ?
+      ORDER BY dc.semester_number ASC, dc.course_order ASC
+    `).bind(programId).all();
+    const grouped = {};
+    for (const course of curriculum?.results || []) {
+      if (!grouped[course.semester_number]) {
+        grouped[course.semester_number] = [];
+      }
+      grouped[course.semester_number].push(course);
+    }
+    return new Response(JSON.stringify(grouped), {
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (error) {
+    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  }
+});
+lmsRouter.get("/student/:studentId/degree-progress", async (req, env) => {
+  try {
+    const studentId = parseInt(req.params.studentId);
+    const enrollment = await env.DB.prepare(`
+      SELECT de.*, dp.program_name, dp.total_credits_required
+      FROM lms_degree_enrollments de
+      JOIN lms_degree_programs dp ON de.program_id = dp.id
+      WHERE de.student_id = ?
+    `).bind(studentId).first();
+    if (!enrollment) {
+      return new Response(JSON.stringify({ error: "No enrollment found" }), { status: 404 });
+    }
+    const completedCourses = await env.DB.prepare(`
+      SELECT * FROM lms_student_course_enrollments
+      WHERE degree_enrollment_id = ? AND status = 'completed'
+    `).bind(enrollment.id).all();
+    const creditPercentage = enrollment.total_credits_completed / enrollment.total_credits_required * 100;
+    return new Response(JSON.stringify({
+      enrollment,
+      completed_courses: completedCourses?.results || [],
+      credits_earned: enrollment.total_credits_completed,
+      credits_required: enrollment.total_credits_required,
+      progress_percentage: creditPercentage.toFixed(2),
+      cumulative_gpa: enrollment.cumulative_gpa.toFixed(2),
+      current_semester: enrollment.current_semester
+    }), { headers: { "Content-Type": "application/json" } });
+  } catch (error) {
+    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  }
+});
+lmsRouter.get("/disclosures", async (req, env) => {
+  try {
+    const userType = new URL(req.url).searchParams.get("user_type") || "all_students";
+    const disclosures = await env.DB.prepare(`
+      SELECT * FROM lms_legal_disclosures
+      WHERE applies_to = 'all_students' OR applies_to = ?
+      ORDER BY disclosure_type ASC
+    `).bind(userType).all();
+    return new Response(JSON.stringify(disclosures?.results || []), {
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (error) {
+    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  }
+});
+lmsRouter.post("/disclosure/acknowledge", async (req, env) => {
+  try {
+    const body = await req.json();
+    const { student_id, disclosure_id, ip_address, user_agent } = body;
+    if (!student_id || !disclosure_id) {
+      return new Response(JSON.stringify({ error: "Missing required fields" }), { status: 400 });
+    }
+    const ackId = `ack-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    await env.DB.prepare(`
+      INSERT INTO lms_student_acknowledgments 
+      (id, student_id, disclosure_id, acknowledged_at, ip_address, user_agent)
+      VALUES (?, ?, ?, datetime('now'), ?, ?)
+    `).bind(ackId, student_id, disclosure_id, ip_address || "unknown", user_agent || "unknown").run();
+    return new Response(JSON.stringify({
+      success: true,
+      acknowledgment_id: ackId
+    }), { status: 201 });
+  } catch (error) {
+    console.error("Acknowledge disclosure error:", error);
+    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  }
 });
 var lms_default = lmsRouter;
 
@@ -10083,10 +14977,10 @@ async function handleAuditLogProcessing(env, ctx) {
 __name(handleAuditLogProcessing, "handleAuditLogProcessing");
 
 // src/handlers/irs-callback.ts
-async function handleIrsCallback(request2, env) {
+async function handleIrsCallback(request, env) {
   try {
-    const body = await request2.json();
-    const signature = request2.headers.get("X-IRS-Signature");
+    const body = await request.json();
+    const signature = request.headers.get("X-IRS-Signature");
     const { submissionId, clientId, status, ackTimestamp, errors } = body;
     if (!submissionId) {
       return new Response(JSON.stringify({ error: "Missing submissionId" }), {
@@ -10155,10 +15049,10 @@ async function handleIrsCallback(request2, env) {
 __name(handleIrsCallback, "handleIrsCallback");
 
 // src/handlers/payment-webhook.ts
-async function handlePaymentWebhook(request2, env) {
+async function handlePaymentWebhook(request, env) {
   try {
-    const body = await request2.json();
-    const signature = request2.headers.get("X-Payment-Signature");
+    const body = await request.json();
+    const signature = request.headers.get("X-Payment-Signature");
     const { transactionId, clientId, amount, status, paymentMethod } = body;
     if (!transactionId) {
       return new Response(JSON.stringify({ error: "Missing transactionId" }), {
@@ -10215,9 +15109,9 @@ async function handlePaymentWebhook(request2, env) {
 __name(handlePaymentWebhook, "handlePaymentWebhook");
 
 // src/handlers/credential-upload.ts
-async function handleCredentialUpload(request2, env) {
+async function handleCredentialUpload(request, env) {
   try {
-    const body = await request2.json();
+    const body = await request.json();
     const { clientId, credentialType, encryptedData, returnId } = body;
     if (!clientId || !credentialType || !encryptedData) {
       return new Response(JSON.stringify({
@@ -10289,9 +15183,9 @@ async function verifyIrsSignature(payload, signature) {
   }
 }
 __name(verifyIrsSignature, "verifyIrsSignature");
-async function handleIrsRealtimeSchema(request2, env) {
+async function handleIrsRealtimeSchema(request, env) {
   try {
-    const body = await request2.json();
+    const body = await request.json();
     if (body.signature) {
       const payloadStr = JSON.stringify({ type: body.type, timestamp: body.timestamp, data: body.data });
       const isValid = await verifyIrsSignature(payloadStr, body.signature);
@@ -10347,9 +15241,9 @@ async function handleIrsRealtimeSchema(request2, env) {
   }
 }
 __name(handleIrsRealtimeSchema, "handleIrsRealtimeSchema");
-async function handleIrsRealtimeMemo(request2, env) {
+async function handleIrsRealtimeMemo(request, env) {
   try {
-    const body = await request2.json();
+    const body = await request.json();
     if (body.signature) {
       const payloadStr = JSON.stringify({ type: body.type, timestamp: body.timestamp, data: body.data });
       const isValid = await verifyIrsSignature(payloadStr, body.signature);
@@ -10479,7 +15373,7 @@ var ADMIN_EMAIL_ROUTES = {
     departments: ["customer_feedback", "quality_assurance", "compliance_reviews"]
   }
 };
-async function verifyAuth(req, env) {
+async function verifyAuth2(req, env) {
   const authHeader = req.headers.get("Authorization");
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return null;
@@ -10495,7 +15389,7 @@ async function verifyAuth(req, env) {
     return null;
   }
 }
-__name(verifyAuth, "verifyAuth");
+__name(verifyAuth2, "verifyAuth");
 function unauthorized() {
   return new Response(JSON.stringify({ error: "Unauthorized" }), {
     status: 401,
@@ -10646,9 +15540,9 @@ async function handleUpdateRefundStatus(req, env) {
   return new Response(JSON.stringify({ success: true }), { headers: { "Content-Type": "application/json" } });
 }
 __name(handleUpdateRefundStatus, "handleUpdateRefundStatus");
-async function updateIrsMemo(request2, env) {
-  const id = request2.url.split("/")[4];
-  const body = await request2.json();
+async function updateIrsMemo(request, env) {
+  const id = request.url.split("/")[4];
+  const body = await request.json();
   const fields = ["title", "summary", "full_text", "url", "tags", "status", "published_at"];
   const updates = [];
   const params = [];
@@ -10675,8 +15569,8 @@ async function updateIrsMemo(request2, env) {
   return new Response(JSON.stringify({ success: true }), { headers: { "Content-Type": "application/json" } });
 }
 __name(updateIrsMemo, "updateIrsMemo");
-async function deleteIrsMemo(request2, env) {
-  const id = request2.url.split("/")[4];
+async function deleteIrsMemo(request, env) {
+  const id = request.url.split("/")[4];
   await env.DB.prepare(`UPDATE irs_memos SET status = 'deleted' WHERE id = ?`).bind(id).run();
   await env.DB.prepare(`INSERT INTO audit_log (action, entity, entity_id, details, created_at) VALUES (?, ?, ?, ?, datetime('now'))`).bind(
     "delete",
@@ -10687,8 +15581,8 @@ async function deleteIrsMemo(request2, env) {
   return new Response(JSON.stringify({ success: true }), { headers: { "Content-Type": "application/json" } });
 }
 __name(deleteIrsMemo, "deleteIrsMemo");
-async function unlinkIrsMemoLink(request2, env) {
-  const parts = request2.url.split("/");
+async function unlinkIrsMemoLink(request, env) {
+  const parts = request.url.split("/");
   const linkId = parts[6];
   await env.DB.prepare(`DELETE FROM irs_memo_links WHERE id = ?`).bind(linkId).run();
   await env.DB.prepare(`INSERT INTO audit_log (action, entity, entity_id, details, created_at) VALUES (?, ?, ?, ?, datetime('now'))`).bind(
@@ -10700,8 +15594,8 @@ async function unlinkIrsMemoLink(request2, env) {
   return new Response(JSON.stringify({ success: true }), { headers: { "Content-Type": "application/json" } });
 }
 __name(unlinkIrsMemoLink, "unlinkIrsMemoLink");
-async function searchIrsMemos(request2, env) {
-  const url = new URL(request2.url);
+async function searchIrsMemos(request, env) {
+  const url = new URL(request.url);
   const text = url.searchParams.get("text");
   const from = url.searchParams.get("from");
   const to = url.searchParams.get("to");
@@ -10729,8 +15623,8 @@ async function searchIrsMemos(request2, env) {
   return new Response(JSON.stringify(rows.results), { headers: { "Content-Type": "application/json" } });
 }
 __name(searchIrsMemos, "searchIrsMemos");
-async function listIrsMemos(request2, env) {
-  const url = new URL(request2.url);
+async function listIrsMemos(request, env) {
+  const url = new URL(request.url);
   const source = url.searchParams.get("source");
   const tag = url.searchParams.get("tag");
   const status = url.searchParams.get("status") ?? "active";
@@ -10752,8 +15646,8 @@ async function listIrsMemos(request2, env) {
   return new Response(JSON.stringify(rows.results), { headers: { "Content-Type": "application/json" } });
 }
 __name(listIrsMemos, "listIrsMemos");
-async function getIrsMemo(request2, env) {
-  const id = request2.url.split("/").pop();
+async function getIrsMemo(request, env) {
+  const id = request.url.split("/").pop();
   const memo = await env.DB.prepare(
     "SELECT * FROM irs_memos WHERE id = ?"
   ).bind(id).first();
@@ -10764,9 +15658,9 @@ async function getIrsMemo(request2, env) {
   return new Response(JSON.stringify({ memo, links: links.results }), { headers: { "Content-Type": "application/json" } });
 }
 __name(getIrsMemo, "getIrsMemo");
-async function linkIrsMemo(request2, env) {
-  const memoId = request2.url.split("/")[3];
-  const body = await request2.json();
+async function linkIrsMemo(request, env) {
+  const memoId = request.url.split("/")[3];
+  const body = await request.json();
   const id = v4_default();
   await env.DB.prepare(
     `INSERT INTO irs_memo_links 
@@ -10784,8 +15678,8 @@ async function linkIrsMemo(request2, env) {
   return new Response(JSON.stringify({ success: true, id }), { headers: { "Content-Type": "application/json" } });
 }
 __name(linkIrsMemo, "linkIrsMemo");
-async function listIrsSchemaFields(request2, env) {
-  const url = new URL(request2.url);
+async function listIrsSchemaFields(request, env) {
+  const url = new URL(request.url);
   const type = url.searchParams.get("type");
   const status = url.searchParams.get("status") ?? "active";
   let query = "SELECT * FROM irs_schema_fields WHERE status = ?";
@@ -10799,9 +15693,9 @@ async function listIrsSchemaFields(request2, env) {
   return new Response(JSON.stringify(rows.results), { headers: { "Content-Type": "application/json" } });
 }
 __name(listIrsSchemaFields, "listIrsSchemaFields");
-async function handleCreateEnvelope(request2, env, user) {
+async function handleCreateEnvelope(request, env, user) {
   requireRole(user, ["admin", "staff"]);
-  const { client_id, name, email, documentBase64 } = await request2.json();
+  const { client_id, name, email, documentBase64 } = await request.json();
   const accessToken = await getDocuSignAccessToken(env);
   const envelopeBody = {
     emailSubject: "Ross Tax Prep \u2013 Engagement Letter",
@@ -10860,9 +15754,9 @@ async function handleCreateEnvelope(request2, env, user) {
   });
 }
 __name(handleCreateEnvelope, "handleCreateEnvelope");
-async function handleEmbeddedSigningUrl(request2, env, user) {
+async function handleEmbeddedSigningUrl(request, env, user) {
   requireRole(user, ["admin", "staff", "client"]);
-  const { envelopeId, client_id, name, email } = await request2.json();
+  const { envelopeId, client_id, name, email } = await request.json();
   const accessToken = await getDocuSignAccessToken(env);
   const body = {
     returnUrl: env.DOCUSIGN_REDIRECT_URL,
@@ -10909,8 +15803,8 @@ async function handleDocuSignWebhook(req, env) {
   return new Response("OK", { status: 200 });
 }
 __name(handleDocuSignWebhook, "handleDocuSignWebhook");
-async function handleSignatures(request2, env, user) {
-  const url = new URL(request2.url);
+async function handleSignatures(request, env, user) {
+  const url = new URL(request.url);
   const scope = url.searchParams.get("scope");
   if (scope === "client") {
     requireRole(user, ["client"]);
@@ -10972,13 +15866,13 @@ async function handleLoginClient(req, env) {
   return new Response(JSON.stringify({ ok: true, user }), { headers: { "Content-Type": "application/json" } });
 }
 __name(handleLoginClient, "handleLoginClient");
-async function listTrainingCourses(request2, env) {
+async function listTrainingCourses(request, env) {
   const rows = await env.DB.prepare("SELECT * FROM training_courses ORDER BY created_at DESC").all();
   return new Response(JSON.stringify(rows.results), { headers: { "Content-Type": "application/json" } });
 }
 __name(listTrainingCourses, "listTrainingCourses");
-async function enrollTrainingCourse(request2, env) {
-  const body = await request2.json();
+async function enrollTrainingCourse(request, env) {
+  const body = await request.json();
   const id = v4_default();
   await env.DB.prepare(
     `INSERT INTO training_enrollments (id, course_id, student_email, student_name, notes)
@@ -11022,6 +15916,13 @@ var index_default2 = {
       const resp = await portalAuth_default.handle(portalAuthReq, env);
       return cors(resp);
     }
+    if (url.pathname.startsWith("/api/efile/prepare")) {
+      const reqPath = url.pathname.replace(/^\/api\/efile/, "");
+      const efileReq = new Request(reqPath || "/", req);
+      Object.defineProperty(efileReq, "params", { value: {} });
+      const resp = await efilePrep_default.handle(efileReq, env);
+      return cors(resp);
+    }
     if (url.pathname.startsWith("/api/consult")) {
       const reqPath = url.pathname.replace(/^\/api\/consult/, "");
       const consultReq = new Request(reqPath || "/", req);
@@ -11043,6 +15944,43 @@ var index_default2 = {
       const resp = await ero_default.handle(eroReq, env);
       return cors(resp);
     }
+    if (url.pathname.startsWith("/api/admin/invoices")) {
+      const reqPath = url.pathname.replace(/^\/api\/admin/, "");
+      const invoicingReq = new Request(reqPath || "/", req);
+      Object.defineProperty(invoicingReq, "params", { value: {} });
+      const user = await verifyAuth2(req, env);
+      if (!user) return cors(unauthorized());
+      if (user.role !== "admin" && user.role !== "staff") return cors(forbidden());
+      invoicingReq.user = user;
+      const resp = await invoicing_default.handle(invoicingReq, env);
+      return cors(resp);
+    }
+    if (url.pathname.startsWith("/api/bank-products")) {
+      const reqPath = url.pathname.replace(/^\/api/, "");
+      const bankReq = new Request(reqPath || "/", req);
+      Object.defineProperty(bankReq, "params", { value: {} });
+      const resp = await bankProducts_default.handle(bankReq, env);
+      return cors(resp);
+    }
+    if (url.pathname.startsWith("/api/notifications")) {
+      const notifReq = new Request(url.pathname, req);
+      Object.defineProperty(notifReq, "params", { value: {} });
+      const resp = await notifications_default.handle(notifReq, env);
+      return cors(resp);
+    }
+    if (url.pathname.startsWith("/api/irs")) {
+      const irsReq = new Request(url.pathname, req);
+      Object.defineProperty(irsReq, "params", { value: {} });
+      const resp = await irsTracking_default.handle(irsReq, env);
+      return cors(resp);
+    }
+    if (url.pathname.startsWith("/api/ai-assistant")) {
+      const reqPath = url.pathname.replace(/^\/api/, "");
+      const aiReq = new Request(reqPath || "/", req);
+      Object.defineProperty(aiReq, "params", { value: {} });
+      const resp = await aiAssistant_default.handle(aiReq, env);
+      return cors(resp);
+    }
     if (ctx && ctx.event && ctx.event.type === "scheduled") {
       const tipImageUrl = env.WEEKLY_TIP_IMAGE_URL;
       const tipCaption = env.WEEKLY_TIP_CAPTION;
@@ -11058,13 +15996,13 @@ var index_default2 = {
       return cors(healthRoute());
     }
     if (url.pathname === "/api/admin/audit-log" && req.method === "GET") {
-      const user = await verifyAuth(req, env);
+      const user = await verifyAuth2(req, env);
       if (!user) return cors(unauthorized());
       if (user.role !== "admin") return cors(forbidden());
       return await handleAuditLog(req, env);
     }
     if (url.pathname === "/api/admin/audit-analytics" && req.method === "GET") {
-      const user = await verifyAuth(req, env);
+      const user = await verifyAuth2(req, env);
       if (!user) return cors(unauthorized());
       if (user.role !== "admin") return cors(forbidden());
       return await handleAuditAnalytics(req, env);
@@ -11127,17 +16065,17 @@ var index_default2 = {
       }));
     }
     if (url.pathname === "/api/client/refunds" && req.method === "GET") {
-      const user = await verifyAuth(req, env);
+      const user = await verifyAuth2(req, env);
       if (!user) return cors(unauthorized());
       return await handleClientRefunds(req, env, user);
     }
     if (url.pathname === "/api/me" && req.method === "GET") {
-      const user = await verifyAuth(req, env);
+      const user = await verifyAuth2(req, env);
       if (!user) return cors(unauthorized());
       return await handleMe(req, env, user);
     }
     if (url.pathname === "/api/admin/refunds" && req.method === "GET") {
-      const user = await verifyAuth(req, env);
+      const user = await verifyAuth2(req, env);
       if (!user) return cors(unauthorized());
       if (user.role !== "admin" && user.role !== "staff") return cors(forbidden());
       return await handleAdminRefunds(req, env);
@@ -11265,6 +16203,26 @@ var index_default2 = {
         acknowledgments: acks
       }), { headers: { "Content-Type": "application/json" } });
     }
+    if (url.pathname === "/api/services/request" && req.method === "POST") {
+      const { handleServiceRequest: handleServiceRequest2 } = await Promise.resolve().then(() => (init_serviceRequests(), serviceRequests_exports));
+      return cors(await handleServiceRequest2(req, env));
+    }
+    if (url.pathname.startsWith("/api/services/history/") && req.method === "GET") {
+      const { handleServiceHistory: handleServiceHistory2 } = await Promise.resolve().then(() => (init_serviceRequests(), serviceRequests_exports));
+      const clientId = url.pathname.split("/").pop();
+      const reqWithParams = Object.assign(req, { params: { clientId } });
+      return cors(await handleServiceHistory2(reqWithParams, env));
+    }
+    if (url.pathname.startsWith("/api/services/request/") && req.method === "PATCH") {
+      const { handleUpdateServiceRequest: handleUpdateServiceRequest2 } = await Promise.resolve().then(() => (init_serviceRequests(), serviceRequests_exports));
+      const requestId = url.pathname.split("/").pop();
+      const reqWithParams = Object.assign(req, { params: { requestId } });
+      return cors(await handleUpdateServiceRequest2(reqWithParams, env));
+    }
+    if (url.pathname === "/api/documents/upload" && req.method === "POST") {
+      const { handleDocumentUpload: handleDocumentUpload2 } = await Promise.resolve().then(() => (init_serviceRequests(), serviceRequests_exports));
+      return cors(await handleDocumentUpload2(req, env));
+    }
     if (url.pathname.startsWith("/admin/irs/memos/") && req.method === "PATCH") {
       return await updateIrsMemo(req, env);
     }
@@ -11361,25 +16319,25 @@ var index_default2 = {
       return await handleInstagramAnalytics(env);
     }
     if (url.pathname === "/api/instagram/post" && req.method === "POST") {
-      const user = await verifyAuth(req, env);
+      const user = await verifyAuth2(req, env);
       if (!user) return cors(unauthorized());
       if (user.role !== "admin" && user.role !== "staff") return cors(forbidden());
       return await handleInstagramPost(req, env, user);
     }
     if (url.pathname === "/api/instagram/dm" && req.method === "POST") {
-      const user = await verifyAuth(req, env);
+      const user = await verifyAuth2(req, env);
       if (!user) return cors(unauthorized());
       if (user.role !== "admin" && user.role !== "staff") return cors(forbidden());
       return await handleInstagramDM(req, env, user);
     }
     if (url.pathname === "/api/docusign/create-envelope" && req.method === "POST") {
-      const user = await verifyAuth(req, env);
+      const user = await verifyAuth2(req, env);
       if (!user) return cors(unauthorized());
       if (user.role !== "admin" && user.role !== "staff") return cors(forbidden());
       return await handleCreateEnvelope(req, env, user);
     }
     if (url.pathname === "/api/docusign/embedded-url" && req.method === "POST") {
-      const user = await verifyAuth(req, env);
+      const user = await verifyAuth2(req, env);
       if (!user) return cors(unauthorized());
       if (user.role !== "admin" && user.role !== "staff") return cors(forbidden());
       return await handleEmbeddedSigningUrl(req, env, user);
@@ -11388,7 +16346,7 @@ var index_default2 = {
       return await handleDocuSignWebhook(req, env);
     }
     if (url.pathname.startsWith("/api/signatures")) {
-      const user = await verifyAuth(req, env);
+      const user = await verifyAuth2(req, env);
       if (!user) return cors(unauthorized());
       return await handleSignatures(req, env, user);
     }
@@ -11468,7 +16426,7 @@ var index_default2 = {
       return cors(await handleComplianceReport(req, env));
     }
     if (url.pathname === "/api/social/post" && req.method === "POST") {
-      const user = await verifyAuth(req, env);
+      const user = await verifyAuth2(req, env);
       if (!user) return cors(unauthorized());
       return cors(await handleSocialPost(req, env, user));
     }
@@ -11479,7 +16437,7 @@ var index_default2 = {
       return cors(await handleSocialMetrics(req, env));
     }
     if (url.pathname === "/api/social/schedule" && req.method === "POST") {
-      const user = await verifyAuth(req, env);
+      const user = await verifyAuth2(req, env);
       if (!user) return cors(unauthorized());
       return cors(await handleSchedulePost(req, env, user));
     }
@@ -11487,7 +16445,7 @@ var index_default2 = {
       return cors(await handleSocialMentions(req, env));
     }
     if (url.pathname === "/api/social/reply" && req.method === "POST") {
-      const user = await verifyAuth(req, env);
+      const user = await verifyAuth2(req, env);
       if (!user) return cors(unauthorized());
       return cors(await handleSocialReply(req, env, user));
     }
@@ -11495,7 +16453,7 @@ var index_default2 = {
       return cors(await handleGoogleReviews(req, env));
     }
     if (url.pathname === "/api/social/google/reply" && req.method === "POST") {
-      const user = await verifyAuth(req, env);
+      const user = await verifyAuth2(req, env);
       if (!user) return cors(unauthorized());
       return cors(await handleGoogleReplyReview(req, env, user));
     }
@@ -11509,15 +16467,33 @@ var index_default2 = {
       const resp = await portal_default.handle(portalReq, env);
       return cors(resp);
     }
+    if (url.pathname.startsWith("/api/ai-support")) {
+      const reqPath = url.pathname.replace(/^\/api\/ai-support/, "");
+      const aiReq = new Request(reqPath || "/", req);
+      Object.defineProperty(aiReq, "params", { value: {} });
+      const resp = await aiSupport_default.handle(aiReq, env);
+      return cors(resp);
+    }
+    if (url.pathname.startsWith("/api/workflows")) {
+      const reqPath = url.pathname.replace(/^\/api\/workflows/, "");
+      const workflowReq = new Request(reqPath || "/", req);
+      Object.defineProperty(workflowReq, "params", { value: {} });
+      const resp = await workflows_default.handle(workflowReq, env);
+      return cors(resp);
+    }
     if (url.pathname.startsWith("/api/lms")) {
+      if (url.pathname.startsWith("/api/lms/enroll") || url.pathname.startsWith("/api/lms/enrollments") || url.pathname.startsWith("/api/lms/certificates")) {
+        const reqPath2 = url.pathname.replace(/^\/api\/lms/, "");
+        const lmsEnrollReq = new Request(reqPath2 || "/", req);
+        Object.defineProperty(lmsEnrollReq, "params", { value: {} });
+        const resp2 = await lmsEnrollment_default.handle(lmsEnrollReq, env);
+        return cors(resp2);
+      }
       const reqPath = url.pathname.replace(/^\/api\/lms/, "");
       const lmsReq = new Request(reqPath || "/", req);
       Object.defineProperty(lmsReq, "params", { value: {} });
       const resp = await lms_default.handle(lmsReq, env);
       return cors(resp);
-    }
-    if (url.pathname === "/api/lms/payment" && request.method === "POST") {
-      return await lmsPaymentRouter.handle(request, event.target.env);
     }
     if (url.pathname === "/api/admin/email-routes" && req.method === "GET") {
       return cors(new Response(JSON.stringify(ADMIN_EMAIL_ROUTES), {
@@ -11527,7 +16503,7 @@ var index_default2 = {
     return new Response("Not Found", { status: 404 });
   },
   // Scheduled handler for IRS sync and data retention
-  async scheduled(event2, env, ctx) {
+  async scheduled(event, env, ctx) {
     console.log("Running scheduled tasks...");
     await handleScheduledIRSSync(env, ctx);
     await handleAuditLogProcessing(env, ctx);
