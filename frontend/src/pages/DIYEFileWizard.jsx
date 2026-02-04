@@ -54,7 +54,6 @@ export default function DIYEFileWizard() {
 
     // Business (Schedule C)
     businessName: "",
-    businessIncome: 0,
     businessExpenses: 0,
 
     // Previous Year Info
