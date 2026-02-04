@@ -676,43 +676,8 @@ export default function DIYEFileWizard() {
     }
   };
 
-  // Authentication Handlers
-  const handleRegister = async () => {
-    if (!accountData.email || !accountData.username || !accountData.password) {
-      setStatus({ type: "error", message: "All fields required" });
-      return;
-    }
-    if (accountData.password !== accountData.confirmPassword) {
-      setStatus({ type: "error", message: "Passwords do not match" });
-      return;
-    }
-
-    setStatus({ type: "loading", message: "Creating account..." });
-    try {
-      const res = await fetch("/api/register/client", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: accountData.email,
-          username: accountData.username,
-          password: accountData.password
-        })
-      });
-
-      const data = await res.json();
-      if (res.ok) {
-        setClientId(data.client_id);
-        setMfaEnabled(true);
-        setStatus({ type: "success", message: "Account created! Enter 2FA code sent to your email." });
-        setAuthMode("2fa");
-      } else {
-        throw new Error(data.error || "Registration failed");
-      }
-    } catch (err) {
-      setStatus({ type: "error", message: err.message });
-    }
-  };
-    const validateRegistration = () => {
+  // Validation Helper
+  const validateRegistration = () => {
       const errors = [];
       if (!accountData.firstName) errors.push("First name required");
       if (!accountData.lastName) errors.push("Last name required");
@@ -766,38 +731,39 @@ export default function DIYEFileWizard() {
       } catch (err) {
         setStatus({ type: "error", message: err.message });
       }
+    };
 
-  const handleLogin = async () => {
-    if (!accountData.email || !accountData.password) {
-      setStatus({ type: "error", message: "Email and password required" });
-      return;
-    }
-
-    setStatus({ type: "loading", message: "Logging in..." });
-    try {
-      const res = await fetch("/api/login/client", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: accountData.email,
-          password: accountData.password
-        })
-      });
-
-      const data = await res.json();
-      if (res.ok) {
-        localStorage.setItem("token", data.token);
-        setClientId(data.client_id);
-        setMfaEnabled(true);
-        setStatus({ type: "success", message: "Logged in! Enter 2FA code." });
-        setAuthMode("2fa");
-      } else {
-        throw new Error(data.error || "Login failed");
+    const handleLogin = async () => {
+      if (!accountData.email || !accountData.password) {
+        setStatus({ type: "error", message: "Email and password required" });
+        return;
       }
-    } catch (err) {
-      setStatus({ type: "error", message: err.message });
-    }
-  };
+
+      setStatus({ type: "loading", message: "Logging in..." });
+      try {
+        const res = await fetch("/api/login/client", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: accountData.email,
+            password: accountData.password
+          })
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+          localStorage.setItem("token", data.token);
+          setClientId(data.client_id);
+          setMfaEnabled(true);
+          setStatus({ type: "success", message: "Logged in! Enter 2FA code." });
+          setAuthMode("2fa");
+        } else {
+          throw new Error(data.error || "Login failed");
+        }
+      } catch (err) {
+        setStatus({ type: "error", message: err.message });
+      }
+    };
 
   const handleMfaVerify = async () => {
     if (!mfaCode) {
@@ -924,49 +890,6 @@ export default function DIYEFileWizard() {
               <p style={{ color: "#666", marginBottom: 24 }}>
                 Enter the 6-digit code sent to your email.
               </p>
-          const handleRegister = async () => {
-            const errors = validateRegistration();
-            if (errors.length > 0) {
-              setStatus({ type: "error", message: errors.join("; ") });
-              return;
-            }
-
-            setStatus({ type: "loading", message: "Creating account and verifying identity..." });
-            try {
-              const res = await fetch("/api/register/client", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  firstName: accountData.firstName,
-                  lastName: accountData.lastName,
-                  email: accountData.email,
-                  username: accountData.username,
-                  password: accountData.password,
-                  phone: accountData.phone,
-                  ssn: accountData.ssn,
-                  idType: accountData.idType,
-                  idNumber: accountData.idNumber,
-                  dob: accountData.dob,
-                  role: userRole
-                })
-              });
-
-              const data = await res.json();
-              if (res.ok) {
-                setClientId(data.client_id);
-                setUserRole(data.role);
-                setMfaEnabled(true);
-                setStatus({ type: "success", message: "Account created! Verify your identity with 2FA code." });
-                setAuthMode("2fa");
-              } else {
-                throw new Error(data.error || "Registration failed");
-              }
-            } catch (err) {
-              setStatus({ type: "error", message: err.message });
-            }
-          };
-
-                  {authMode === "register" && (
               <label className="field">
                 <span>Authentication Code</span>
                 <input 
