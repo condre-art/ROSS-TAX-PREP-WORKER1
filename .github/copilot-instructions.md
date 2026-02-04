@@ -4,8 +4,8 @@ Use these notes to get productive fast across the Cloudflare Worker API (`src/`)
 
 ### Architecture
 - **Worker (API Gateway)**: `src/index.ts` registers routes for auth, CRM, e-file, payments, certificates, compliance, social, IRS realtime, and webhooks. Uses Hono-style handlers and JWT auth (`verifyAuth`).
-- **Routes**: Located under `src/routes/*` (e.g., `auth.ts`, `crm.ts`, `certificates.ts`, `clientPortal.ts`). Helpers/utilities in `src/utils/*` (encryption, audit, schedulers).
-- **Data layer**: Cloudflare D1. Base schema in `schema.sql`; migrations under `migration-data/` and ad-hoc files like `migration-client-portal.sql`. Bindings named `DB` (worker) and `DB` inside Pages functions.
+- **Routes**: Located under `src/routes/*` (e.g., `auth.ts`, `crm.ts`, `certificates.ts`, `clientPortal.ts`). Helpers/utilities in `src/utils/*` (encryption, audit, schedulers). Note one camelCase file (`clientPortal.ts`) among otherwise kebab/lowercase names.
+- **Data layer**: Cloudflare D1. Base schema in `schema.sql`; migrations under `migration-data/` and ad-hoc files like `migration-client-portal.sql`. D1 binding named `DB` is available to both the Worker and Pages functions.
 - **Frontend**: React + Vite in `frontend/`. Pages in `frontend/src/pages/` (Intake, CRM, DIYEFileWizard/EFileWizard, LMS). Shared UI in `frontend/src/components/`. Pages Functions APIs in `frontend/functions/api/*` with Cloudflare Access middleware.
 - **Dual business lines**: Tax prep (IRS e-file, refund transfers, CRM) and AI-instructed LMS programs (Bachelor’s degree track). Keep both contexts in mind when adding features.
 
