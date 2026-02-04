@@ -1,55 +1,51 @@
-## Ross Tax Prep – Frontend Copilot Instructions
+## Ross Tax Prep – Copilot Instructions (Worker + Frontend)
 
-Repository: `ross-tax-prep-frontend` (Cloudflare Pages: React + Vite with Pages Functions)
+Use these notes to get productive fast across the Cloudflare Worker API (`src/`) and the Pages frontend (`frontend/`).
 
-### Architecture Snapshot
-- **App shell**: `frontend/src/App.jsx`, entry `frontend/src/main.jsx` (Vite).
-- **Pages (React)**: `frontend/src/pages/` (e.g., `Intake.jsx`, `CRM.jsx`, `Home.jsx`, `FAQ.jsx`, `Services.jsx`, `EFileWizard.jsx`, `Lms.jsx`, `Success.jsx`).
-- **Shared UI**: `frontend/src/components/` (Button, Table, Navbar, Modal, ToastProvider, CertificateAPIStatus, etc.).
-- **Utilities**: `frontend/src/utils/` (PDF generators, downloads).
-- **Pages Functions API**: `frontend/functions/api/` for client-facing endpoints; `_middleware.js` applies Cloudflare Access to protected routes.
-- **Build output**: `frontend/dist/` (Vite).
+### Architecture
+- **Worker (API Gateway)**: `src/index.ts` registers routes for auth, CRM, e-file, payments, certificates, compliance, social, IRS realtime, and webhooks. Uses Hono-style handlers and JWT auth (`verifyAuth`).
+- **Routes**: Located under `src/routes/*` (e.g., `auth.ts`, `crm.ts`, `certificates.ts`, `clientPortal.ts`). Helpers/utilities in `src/utils/*` (encryption, audit, schedulers). Note one camelCase file (`clientPortal.ts`) among otherwise kebab/lowercase names.
+- **Data layer**: Cloudflare D1. Base schema in `schema.sql`; migrations under `migration-data/` and ad-hoc files like `migration-client-portal.sql`. D1 binding named `DB` is available to both the Worker and Pages functions.
+- **Frontend**: React + Vite in `frontend/`. Pages in `frontend/src/pages/` (Intake, CRM, DIYEFileWizard/EFileWizard, LMS). Shared UI in `frontend/src/components/`. Pages Functions APIs in `frontend/functions/api/*` with Cloudflare Access middleware.
+- **Dual business lines**: Tax prep (IRS e-file, refund transfers, CRM) and AI-instructed LMS programs (Bachelor’s degree track). Keep both contexts in mind when adding features.
 
-### Standard Scripts
-```bash
-npm install
-npm run dev     # Vite dev server
-npm run build   # Vite production build
-npm run lint    # if present
-npm test        # if present
-```
+### Build, Dev, Test
+- **Worker** (root):
+  - `npm install`
+  - `npm run dev` (wrangler dev)
+  - `npm run build` (dry-run bundle to `dist/`)
+  - `npm test` (vitest)
+- **Frontend** (`cd frontend`):
+  - `npm install`
+  - `npm run dev`
+  - `npm run build` / `npm run deploy` (Cloudflare Pages)
+Pages Functions share env with frontend; keep API calls relative (`/api/...`).
 
-### Form Pattern (Client-Side)
-- Use `useState` for form data and `useMemo` for derived validity.
-- Status state has `idle | loading | error`; set loading during submit.
-- Disable submit when `!canSubmit` **or** `status.type === "loading"`.
-- On success, navigate to `/success`.
-- Reference: `frontend/src/pages/Intake.jsx`.
+### Security & Compliance Patterns
+- JWT auth via `Authorization: Bearer` and `verifyAuth` in `src/index.ts`; unauthorized→401, forbidden→403.
+- PII handling: encryption helpers in `src/utils/encryption.ts`; audit logging in `src/utils/audit.ts`. Log access to PII and admin actions.
+- Refund transfer SoD: approval flows and audit requirements enforced in refund-transfer routes/tables (see migrations).
+- Cloudflare Access middleware guards staff/CRM routes in `frontend/functions/_middleware.js`.
 
-### Pages Functions Submission Flow (`/api/intake`)
-- File: `frontend/functions/api/intake.js`
-- Validate `Content-Type: application/json`; reject otherwise.
-- Require `fullName` (min 2 chars) and valid `email`; optional `phone`, `service`, `notes`.
-- Send notification via MailChannels.
-- If `CRM_WEBHOOK_URL` is set, POST the payload there.
-- Response: `{ success: true, id: <uuid> }` on success; include meaningful error on failure.
+### Common Workflows
+- **Client intake** (frontend): `frontend/src/pages/Intake.jsx` posts JSON to `/api/intake`; server validates JSON, emails via MailChannels, optional CRM webhook (`CRM_WEBHOOK_URL`), responds `{success,id}`.
+- **E-file**: `src/efile.ts` handles transmit/check status and acknowledgment processing; status helpers `getEFileStatusInfo`.
+- **IRS realtime docs/memos**: handlers in `src/handlers/irs-realtime.ts` and `src/irs.ts`.
+- **LMS**: Education pages in `frontend/src/pages/Lms.jsx` and LMS APIs under worker/routes; highlight AI-instructed Bachelor’s program context.
 
-### Environment Variables (Pages)
-- `MAILCHANNELS_AUTH` / MailChannels key for outbound email.
-- `CRM_WEBHOOK_URL` optional webhook for CRM ingestion.
-- `API_BASE_URL` when frontend needs to call worker APIs.
+### Environment & Bindings
+- Worker: configure `JWT_SECRET`, `DB` (D1), any provider secrets (bank products, payments), IRS endpoints.
+- Pages/Functions: `MAILCHANNELS_AUTH`, `CRM_WEBHOOK_URL`, `API_BASE_URL` (when calling worker), plus shared `DB` binding for D1.
 
-### Key Protected Routes
-- Cloudflare Access enforced via `frontend/functions/_middleware.js` for `/crm/*`, `/api/crm/*`, `/api/docs/*`.
-- Staff CRM UI at `/crm` calls Pages Functions (e.g., `crm/intakes.js`, `crm/update-status.js`, `docs/upload.js`).
-
-### Workflow Integration Notes
-- Client-facing workflow: Intake form (`/api/intake`) → MailChannels + optional CRM webhook → staff consumes via CRM dashboard.
-- Ensure fetch calls use relative `/api/...` paths to leverage Pages Functions and configured env vars.
+### Patterns to Follow
+- Frontend forms: `useState` + `useMemo` for validity, status union `idle|loading|error`, disable submit when loading or invalid, navigate to `/success` on success (see Intake.jsx).
+- API responses: JSON with clear `error` or `{success:true,...}`; set `Content-Type: application/json`.
+- Keep fetch URLs relative and respect CORS config in `src/cors.ts`.
 
 ### Quick Links
-- Intake page: `frontend/src/pages/Intake.jsx`
-- CRM dashboard: `frontend/src/pages/CRM.jsx`
-- Intake handler: `frontend/functions/api/intake.js`
-- CRM intakes list: `frontend/functions/api/crm/intakes.js`
-- Auth middleware: `frontend/functions/_middleware.js`
+- Worker entry: `src/index.ts`
+- Key routes: `src/routes/auth.ts`, `src/routes/crm.ts`, `src/routes/certificates.ts`, `src/routes/clientPortal.ts`
+- E-file: `src/efile.ts`
+- Encryption/Audit: `src/utils/encryption.ts`, `src/utils/audit.ts`
+- Frontend pages: `frontend/src/pages/Intake.jsx`, `frontend/src/pages/CRM.jsx`, `frontend/src/pages/DIYEFileWizard.jsx`, `frontend/src/pages/Lms.jsx`
+- Pages Functions: `frontend/functions/api/intake.js`, `frontend/functions/_middleware.js`
