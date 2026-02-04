@@ -1,0 +1,407 @@
+/* Client Portal Dashboard Styles - Navy & Chrome Gold Theme */
+
+:root {
+  --navy: #003366;
+  --navy-light: #004080;
+  --navy-dark: #002244;
+  --gold: #D4AF37;
+  --gold-light: #F5E6C8;
+  --gold-dark: #B8941F;
+  --white: #FFFFFF;
+  --gray-50: #F9FAFB;
+  --gray-100: #F3F4F6;
+  --gray-200: #E5E7EB;
+  --gray-300: #D1D5DB;
+  --gray-600: #4B5563;
+  --gray-900: #111827;
+  --green: #10B981;
+  --red: #EF4444;
+  --orange: #F59E0B;
+  --blue: #3B82F6;
+}
+
+.dashboard-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, var(--gray-50) 0%, var(--gray-100) 100%);
+  padding: 2rem;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', sans-serif;
+}
+
+.dashboard-header {
+  text-align: center;
+  margin-bottom: 2rem;
+  padding: 2rem;
+  background: linear-gradient(135deg, var(--navy) 0%, var(--navy-light) 100%);
+  border-radius: 16px;
+  color: var(--white);
+  box-shadow: 0 10px 40px rgba(0, 51, 102, 0.2);
+}
+
+.dashboard-header h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem 0;
+  background: linear-gradient(135deg, var(--white) 0%, var(--gold-light) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.dashboard-header .subtitle {
+  font-size: 1.125rem;
+  color: var(--gold-light);
+  margin: 0;
+  font-weight: 500;
+}
+
+.notifications-banner {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dark) 100%);
+  color: var(--navy-dark);
+  padding: 1rem 1.5rem;
+  border-radius: 12px;
+  margin-bottom: 2rem;
+  box-shadow: 0 4px 12px rgba(212, 175, 55, 0.3);
+}
+
+.notification-icon {
+  font-size: 1.5rem;
+}
+
+.notification-content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.notification-content strong {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  color: var(--navy);
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+}
+
+.btn-link:hover {
+  color: var(--navy-dark);
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 1.5rem;
+}
+
+.card {
+  background: var(--white);
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+}
+
+.card-highlight {
+  border: 2px solid var(--gold);
+  background: linear-gradient(135deg, var(--white) 0%, var(--gold-light) 100%);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.5rem;
+  border-bottom: 2px solid var(--gray-100);
+  background: var(--navy);
+  color: var(--white);
+}
+
+.card-header h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.badge {
+  padding: 0.25rem 0.75rem;
+  background: var(--gold);
+  color: var(--navy-dark);
+  border-radius: 12px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.badge-urgent {
+  background: var(--red);
+  color: var(--white);
+}
+
+.card-body {
+  padding: 1.5rem;
+}
+
+.empty-state {
+  text-align: center;
+  color: var(--gray-600);
+  padding: 2rem 1rem;
+  font-style: italic;
+}
+
+/* Tax Returns */
+.returns-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.return-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  background: var(--gray-50);
+  border-radius: 12px;
+  border-left: 4px solid var(--navy);
+}
+
+.return-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.return-info strong {
+  font-size: 1rem;
+  color: var(--navy);
+}
+
+.filing-status {
+  font-size: 0.875rem;
+  color: var(--gray-600);
+  text-transform: capitalize;
+}
+
+.status-badge {
+  padding: 0.375rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.status-draft { background: var(--gray-200); color: var(--gray-600); }
+.status-progress { background: var(--blue); color: var(--white); }
+.status-pending { background: var(--orange); color: var(--white); }
+.status-submitted { background: var(--navy); color: var(--white); }
+.status-accepted { background: var(--green); color: var(--white); }
+.status-rejected { background: var(--red); color: var(--white); }
+
+/* Tasks */
+.tasks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.task-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  background: var(--gray-50);
+  border-radius: 12px;
+  border-left: 4px solid var(--gold);
+}
+
+.task-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+}
+
+.task-icon {
+  font-size: 1.5rem;
+}
+
+.task-info strong {
+  display: block;
+  color: var(--navy);
+  font-size: 0.875rem;
+}
+
+.due-date {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--gray-600);
+  margin-top: 0.25rem;
+}
+
+.btn-action {
+  padding: 0.5rem 1rem;
+  background: var(--navy);
+  color: var(--white);
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-action:hover {
+  background: var(--navy-light);
+}
+
+/* Refund Status */
+.refund-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.refund-amount, .refund-fee, .refund-net {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  background: var(--white);
+  border-radius: 8px;
+}
+
+.refund-amount .label,
+.refund-fee .label,
+.refund-net .label {
+  font-size: 0.875rem;
+  color: var(--gray-600);
+}
+
+.amount {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--green);
+}
+
+.fee {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--red);
+}
+
+.net {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--navy);
+}
+
+.refund-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.expected-date {
+  font-size: 0.875rem;
+  color: var(--gray-600);
+}
+
+.disclaimer {
+  padding: 1rem;
+  background: var(--gold-light);
+  border-left: 4px solid var(--gold);
+  border-radius: 8px;
+  margin-top: 1rem;
+}
+
+.disclaimer small {
+  font-size: 0.75rem;
+  color: var(--navy-dark);
+  line-height: 1.5;
+}
+
+/* Quick Actions */
+.quick-actions {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+.action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1.5rem 1rem;
+  background: linear-gradient(135deg, var(--navy) 0%, var(--navy-light) 100%);
+  color: var(--white);
+  border: none;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.action-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 51, 102, 0.3);
+}
+
+.action-btn .icon {
+  font-size: 2rem;
+}
+
+/* Loading & Error States */
+.loading-spinner {
+  text-align: center;
+  padding: 4rem 2rem;
+  font-size: 1.25rem;
+  color: var(--navy);
+  font-weight: 600;
+}
+
+.error-message {
+  padding: 2rem;
+  background: var(--red);
+  color: var(--white);
+  border-radius: 12px;
+  text-align: center;
+  font-weight: 600;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .dashboard-container {
+    padding: 1rem;
+  }
+  
+  .dashboard-header h1 {
+    font-size: 2rem;
+  }
+  
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .quick-actions {
+    grid-template-columns: 1fr;
+  }
+}
