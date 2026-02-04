@@ -1,0 +1,10 @@
+// ...existing code...
+
+[observability]
+enabled = false
+
+[observability.logs]
+enabled = false
+invocation_logs = true
+
+// ...existing code...

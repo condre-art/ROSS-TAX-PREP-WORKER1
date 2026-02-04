@@ -1,0 +1,32 @@
+name = "ross-tax-prep-worker"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+# Observability Configuration
+[observability]
+enabled = false
+
+[observability.logs]
+enabled = false
+invocation_logs = true
+
+# D1 Database
+[[d1_databases]]
+binding = "DB"
+database_name = "ross_tax_db"
+database_id = "your-d1-database-id"
+
+# R2 Storage (Documents)
+[[r2_buckets]]
+binding = "DOCUMENTS"
+bucket_name = "ross-tax-documents"
+
+# KV Namespace (Sessions/Cache)
+[[kv_namespaces]]
+binding = "SESSIONS"
+id = "your-kv-namespace-id"
+
+# Environment Variables (non-sensitive)
+[vars]
+ENVIRONMENT = "development"
+APP_URL = "https://rosstaxprepandbookkeeping.com"

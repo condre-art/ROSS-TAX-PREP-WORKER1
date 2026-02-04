@@ -862,30 +862,6 @@ export default {
       return cors(resp);
     }
 
-    // --- Client Portal API Route (all /api/portal/* endpoints) ---
-    if (url.pathname.startsWith("/api/portal")) {
-      const reqPath = url.pathname.replace(/^\/api/, "");
-      const portalReq = new Request(reqPath || "/", req);
-      Object.defineProperty(portalReq, "params", {
-        value: extractPathParams(url.pathname)
-      });
-      const clientPortalRouter = createClientPortalRouter(env.DB);
-      const resp = await clientPortalRouter.handle(portalReq, env);
-      return cors(resp);
-    }
-
-    // --- Refund Transfer Center API Route (all /api/refund-transfer/* endpoints) ---
-    if (url.pathname.startsWith("/api/refund-transfer")) {
-      const reqPath = url.pathname.replace(/^\/api/, "");
-      const refundReq = new Request(reqPath || "/", req);
-      Object.defineProperty(refundReq, "params", {
-        value: extractPathParams(url.pathname)
-      });
-      const refundTransferRouter = createRefundTransferRouter(env.DB);
-      const resp = await refundTransferRouter.handle(refundReq, env);
-      return cors(resp);
-    }
-
     // --- AI Tax Assistant API Route (all /api/ai-assistant/* endpoints) ---
     if (url.pathname.startsWith("/api/ai-assistant")) {
       const reqPath = url.pathname.replace(/^\/api/, "");

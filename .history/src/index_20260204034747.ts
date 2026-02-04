@@ -15,9 +15,6 @@ import form8879Router from "./routes/form8879";
 import fiRouter from "./routes/financialInstitution";
 import clientBankRouter from "./routes/clientBanks";
 import moneyRouter from "./routes/moneyManagement";
-import { createIamRouter } from "./routes/iam";
-import { createClientPortalRouter } from "./routes/clientPortal";
-import { createRefundTransferRouter } from "./routes/refundTransferCenter";
 // --- All Imports at Top ---
 import { healthRoute } from "./health";
 import { cors } from "./cors";
@@ -847,42 +844,6 @@ export default {
         value: extractPathParams(url.pathname)
       });
       const resp = await moneyRouter.handle(moneyReq, env);
-      return cors(resp);
-    }
-
-    // --- IAM (Identity & Access Management) API Route (all /api/iam/* endpoints) ---
-    if (url.pathname.startsWith("/api/iam")) {
-      const reqPath = url.pathname.replace(/^\/api/, "");
-      const iamReq = new Request(reqPath || "/", req);
-      Object.defineProperty(iamReq, "params", {
-        value: extractPathParams(url.pathname)
-      });
-      const iamRouter = createIamRouter(env.DB);
-      const resp = await iamRouter.handle(iamReq, env);
-      return cors(resp);
-    }
-
-    // --- Client Portal API Route (all /api/portal/* endpoints) ---
-    if (url.pathname.startsWith("/api/portal")) {
-      const reqPath = url.pathname.replace(/^\/api/, "");
-      const portalReq = new Request(reqPath || "/", req);
-      Object.defineProperty(portalReq, "params", {
-        value: extractPathParams(url.pathname)
-      });
-      const clientPortalRouter = createClientPortalRouter(env.DB);
-      const resp = await clientPortalRouter.handle(portalReq, env);
-      return cors(resp);
-    }
-
-    // --- Refund Transfer Center API Route (all /api/refund-transfer/* endpoints) ---
-    if (url.pathname.startsWith("/api/refund-transfer")) {
-      const reqPath = url.pathname.replace(/^\/api/, "");
-      const refundReq = new Request(reqPath || "/", req);
-      Object.defineProperty(refundReq, "params", {
-        value: extractPathParams(url.pathname)
-      });
-      const refundTransferRouter = createRefundTransferRouter(env.DB);
-      const resp = await refundTransferRouter.handle(refundReq, env);
       return cors(resp);
     }
 

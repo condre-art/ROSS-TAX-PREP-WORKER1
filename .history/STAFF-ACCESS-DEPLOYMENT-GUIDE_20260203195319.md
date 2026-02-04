@@ -6,7 +6,7 @@ Complete IRS Pub 4557 compliant staff access management system for ROSS Tax & Bo
 - ✅ Firm Profile & EFIN Tracking
 - ✅ Software Seat Licensing
 - ✅ Staff Member Management
-- ✅ Role Alignment (ROSS TAX & BOOKKEEPIN SOFTWARE|EDUCATION  ↔ CRM)
+- ✅ Role Alignment (TaxSlayer ↔ CRM)
 - ✅ Seasonal Staff Tracking
 - ✅ Access Request Workflow
 - ✅ Onboarding Checklists
