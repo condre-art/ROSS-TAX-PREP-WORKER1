@@ -13,8 +13,8 @@ badgesRouter.get('/api/badges/dashboard/:clientId', async (req, env, context) =>
 
   try {
     // Verify auth
-    const authResult = await verifyAuth(req, db, ['client', 'staff', 'admin']);
-    if (!authResult.success) {
+    const user = await verifyAuth(req, env);
+    if (!user) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
     }
 
@@ -35,8 +35,8 @@ badgesRouter.get('/api/badges/client/:clientId', async (req, env, context) => {
 
   try {
     // Verify auth
-    const authResult = await verifyAuth(req, db, ['client', 'staff', 'admin']);
-    if (!authResult.success) {
+    const user = await verifyAuth(req, env);
+    if (!user) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
     }
 
@@ -56,12 +56,13 @@ badgesRouter.post('/api/badges/create', async (req, env, context) => {
 
   try {
     // Verify auth - staff/admin only
-    const authResult = await verifyAuth(req, db, ['staff', 'admin']);
-    if (!authResult.success) {
+    const user = await verifyAuth(req, env);
+    if (!user || (user.role !== 'staff' && user.role !== 'admin')) {
       return new Response(JSON.stringify({ error: 'Unauthorized - staff only' }), { status: 401 });
     }
 
-    const { clientId, badgeType, metadata } = await req.json();
+    const body = await req.json() as { clientId: string; badgeType: string; metadata?: Record<string, any> };
+    const { clientId, badgeType, metadata } = body;
 
     if (!clientId || !badgeType) {
       return new Response(JSON.stringify({ error: 'clientId and badgeType are required' }), { status: 400 });
@@ -79,11 +80,11 @@ badgesRouter.post('/api/badges/create', async (req, env, context) => {
     // Log audit
     await logAudit(db, {
       action: 'badge_awarded',
-      userId: authResult.userId,
-      resourceType: 'badge',
-      resourceId: badge.id,
-      changes: { clientId, badgeType },
-      severity: 'info',
+      entity: 'badge',
+      entity_id: badge.id,
+      user_id: user.id,
+      user_role: user.role,
+      details: `Badge ${badgeType} awarded to client ${clientId}`,
     });
 
     return new Response(JSON.stringify(badge), {
