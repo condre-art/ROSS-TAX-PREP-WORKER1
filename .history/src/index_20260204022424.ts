@@ -759,7 +759,7 @@ export default {
       const user = await verifyAuth(req, env);
       if (!user) return cors(unauthorized());
       if (user.role !== 'admin' && user.role !== 'staff') return cors(forbidden());
-      Object.defineProperty(invoicingReq, "user", { value: user });
+      invoicingReq.user = user;
       const resp = await invoicingRouter.handle(invoicingReq, env);
       return cors(resp);
     }
