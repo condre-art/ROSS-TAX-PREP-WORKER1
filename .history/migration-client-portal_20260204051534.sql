@@ -83,7 +83,7 @@ CREATE INDEX IF NOT EXISTS idx_client_documents_type ON client_documents(doc_typ
 CREATE INDEX IF NOT EXISTS idx_client_documents_status ON client_documents(status);
 CREATE INDEX IF NOT EXISTS idx_client_documents_uploaded ON client_documents(uploaded_at);
 
--- MESSAGE_THREADS (Secure messaging between clients and staff) - MUST come before MESSAGES
+-- MESSAGE_THREADS (Secure messaging between clients and staff)
 CREATE TABLE IF NOT EXISTS message_threads (
   thread_id TEXT PRIMARY KEY,
   client_id TEXT NOT NULL,
@@ -98,7 +98,7 @@ CREATE INDEX IF NOT EXISTS idx_message_threads_client ON message_threads(client_
 CREATE INDEX IF NOT EXISTS idx_message_threads_status ON message_threads(status);
 CREATE INDEX IF NOT EXISTS idx_message_threads_updated ON message_threads(updated_at);
 
--- MESSAGES (Individual messages in threads) - depends on message_threads
+-- MESSAGES (Individual messages in threads)
 CREATE TABLE IF NOT EXISTS messages (
   message_id TEXT PRIMARY KEY,
   thread_id TEXT NOT NULL,

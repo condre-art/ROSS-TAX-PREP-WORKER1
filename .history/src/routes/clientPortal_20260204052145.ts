@@ -395,7 +395,7 @@ export function createClientPortalRouter(db: D1Database) {
       const messageId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       await db
         .prepare(
-          `INSERT INTO messages_new (message_id, thread_id, sender_id, sender_type, message_text)
+          `INSERT INTO messages (message_id, thread_id, sender_id, sender_type, message_text)
            VALUES (?, ?, ?, ?, ?)`
         )
         .bind(messageId, finalThreadId, userId, 'client', message)

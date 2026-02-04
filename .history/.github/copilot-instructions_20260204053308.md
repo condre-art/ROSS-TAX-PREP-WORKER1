@@ -1,9 +1,7 @@
 # Ross Tax Prep & Bookkeeping — AI Coding Agent Instructions
 
 ## Architecture Overview
-This is a **Cloudflare-native tax preparation & educational platform** with strict compliance requirements (IRS Pub 1075, TWC regulations). The platform serves two primary business lines:
-1. **Tax Preparation Services**: Professional tax filing, e-file transmission, refund transfers, client portal
-2. **Bachelor's Degree Programs**: AI-instructed LMS courses in tax preparation and accounting (Texas Workforce Commission authorized)
+This is a **Cloudflare-native tax preparation & LMS platform** with strict compliance requirements (IRS Pub 1075, TWC regulations).
 
 ### Service Boundaries
 - **Worker** ([src/index.ts](src/index.ts)): Main API entrypoint at port 8787
@@ -67,11 +65,9 @@ This is a **Cloudflare-native tax preparation & educational platform** with stri
   - Test mode fallback: Check `isTransmissionEnabled()` from [src/efileProviders.ts](src/efileProviders.ts)
   - Lifecycle: `created` → `transmitting` → `accepted`/`rejected` → acknowledgment processing
 - **LMS enrollments** ([src/routes/lms.ts](src/routes/lms.ts)):
-  - **AI-instructed Bachelor's degree programs** in tax preparation and accounting
   - 7 compliance acknowledgments required (policies, conduct, accreditation, etc.)
   - Tuition locked at enrollment time (`tuition_locked`, `total_price_locked`)
   - Refund eligibility tracked (`refund_eligible`, `refund_processed_at`)
-  - Course delivery via [src/routes/instructor-portal.ts](src/routes/instructor-portal.ts) and AI assistant endpoints
 
 ## Common Pitfalls
 - **Don't bypass audit logging** for sensitive actions; reviewers check `audit_log` table
@@ -93,7 +89,6 @@ This is a **Cloudflare-native tax preparation & educational platform** with stri
 - **Secrets**: JWT_SECRET, ENCRYPTION_KEY, DOCUSIGN_*, MEF_* stored in Cloudflare dashboard (not in code)
 
 ## Documentation Index
-- **LMS & Education**: [BACHELOR-DEGREE-PROGRAM.md](BACHELOR-DEGREE-PROGRAM.md), [DISTANCE-LEARNING-PLATFORM-COMPLETE.md](DISTANCE-LEARNING-PLATFORM-COMPLETE.md), [LMS-IMPLEMENTATION-SUMMARY.md](LMS-IMPLEMENTATION-SUMMARY.md)
 - **Compliance**: [COMPLIANCE-INFRASTRUCTURE-COMPLETE.md](COMPLIANCE-INFRASTRUCTURE-COMPLETE.md), [ENCRYPTION.md](ENCRYPTION.md)
 - **E-file workflows**: [COMPLETE-IRS-WORKFLOW-INTEGRATION.md](COMPLETE-IRS-WORKFLOW-INTEGRATION.md), [EFILE-2025-STATUS.md](EFILE-2025-STATUS.md)
 - **Deployment**: [COMPLETE-DEPLOYMENT-GUIDE.md](COMPLETE-DEPLOYMENT-GUIDE.md), [CLOUDFLARE-PRODUCTION-SETUP.md](CLOUDFLARE-PRODUCTION-SETUP.md)

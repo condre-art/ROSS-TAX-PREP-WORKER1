@@ -1,6 +1,6 @@
--- Migration: Client Portal and Refund Transfer Tables
--- Date: 2026-02-04
--- Description: Adds 13 tables for client portal, refund transfer center, and messaging
+-- Migration: Client Portal Tables (Fixed)
+-- Renamed existing messages table to avoid conflict
+-- Creates 12 new portal tables with clean schema
 
 -- TAX_RETURNS (Client tax return tracking)
 CREATE TABLE IF NOT EXISTS tax_returns (
@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS tax_returns (
   client_id TEXT NOT NULL,
   tax_year INTEGER NOT NULL,
   filing_status TEXT NOT NULL CHECK(filing_status IN ('single', 'married_joint', 'married_separate', 'head_of_household', 'qualifying_widow')),
-  status TEXT NOT NULL CHECK(status IN ("draft", "in_progress", "pending_review", "submitted", "accepted", "rejected", "archived", "withdrawn")),
+  status TEXT NOT NULL CHECK(status IN ('draft', 'in_progress', 'pending_review', 'submitted', 'accepted', 'rejected', 'archived', 'withdrawn')),
   preparer_id INTEGER,
   reviewer_id INTEGER,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -83,7 +83,7 @@ CREATE INDEX IF NOT EXISTS idx_client_documents_type ON client_documents(doc_typ
 CREATE INDEX IF NOT EXISTS idx_client_documents_status ON client_documents(status);
 CREATE INDEX IF NOT EXISTS idx_client_documents_uploaded ON client_documents(uploaded_at);
 
--- MESSAGE_THREADS (Secure messaging between clients and staff) - MUST come before MESSAGES
+-- MESSAGE_THREADS (Secure messaging between clients and staff)
 CREATE TABLE IF NOT EXISTS message_threads (
   thread_id TEXT PRIMARY KEY,
   client_id TEXT NOT NULL,
@@ -98,8 +98,8 @@ CREATE INDEX IF NOT EXISTS idx_message_threads_client ON message_threads(client_
 CREATE INDEX IF NOT EXISTS idx_message_threads_status ON message_threads(status);
 CREATE INDEX IF NOT EXISTS idx_message_threads_updated ON message_threads(updated_at);
 
--- MESSAGES (Individual messages in threads) - depends on message_threads
-CREATE TABLE IF NOT EXISTS messages (
+-- MESSAGES_NEW (Individual messages in threads - NEW SCHEMA)
+CREATE TABLE IF NOT EXISTS messages_new (
   message_id TEXT PRIMARY KEY,
   thread_id TEXT NOT NULL,
   sender_id TEXT NOT NULL,
@@ -111,10 +111,10 @@ CREATE TABLE IF NOT EXISTS messages (
   FOREIGN KEY (thread_id) REFERENCES message_threads(thread_id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_messages_thread ON messages(thread_id);
-CREATE INDEX IF NOT EXISTS idx_messages_sender ON messages(sender_id, sender_type);
-CREATE INDEX IF NOT EXISTS idx_messages_read ON messages(is_read);
-CREATE INDEX IF NOT EXISTS idx_messages_created ON messages(created_at);
+CREATE INDEX IF NOT EXISTS idx_messages_new_thread ON messages_new(thread_id);
+CREATE INDEX IF NOT EXISTS idx_messages_new_sender ON messages_new(sender_id, sender_type);
+CREATE INDEX IF NOT EXISTS idx_messages_new_read ON messages_new(is_read);
+CREATE INDEX IF NOT EXISTS idx_messages_new_created ON messages_new(created_at);
 
 -- CLIENT_ACTIVITY_LOG (90-day client activity tracking)
 CREATE TABLE IF NOT EXISTS client_activity_log (
