@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "include": ["/api/*"],
+  "exclude": [],
+  "rules": [
+    {
+      "type": "route",
+      "pattern": "/api/*",
+      "route": "https://ross-tax-prep-worker.condre.workers.dev/api/*",
+      "comments": "Route all API requests to the worker"
+    }
+  ]
+}
