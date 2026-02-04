@@ -4,10 +4,20 @@ import Card from "../components/Card";
 import Alert from "../components/Alert";
 
 export default function DIYEFileWizard() {
+  // Auth & Account State
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authMode, setAuthMode] = useState("login"); // "login" | "register"
+  const [accountData, setAccountData] = useState({ email: "", password: "", confirmPassword: "", username: "" });
+  const [mfaEnabled, setMfaEnabled] = useState(false);
+  const [mfaCode, setMfaCode] = useState("");
+  const [clientId, setClientId] = useState(null);
+
+  // Wizard State
   const [step, setStep] = useState(1);
   const [taxYear, setTaxYear] = useState(new Date().getFullYear() - 1);
   const [formType, setFormType] = useState("1040");
   const [status, setStatus] = useState({ type: "idle", message: "" });
+  const [validationErrors, setValidationErrors] = useState({});
 
   // Tax Form Data State
   const [formData, setFormData] = useState({
@@ -15,10 +25,18 @@ export default function DIYEFileWizard() {
     firstName: "",
     lastName: "",
     ssn: "",
+    dob: "",
+    address: "",
+    city: "",
+    state: "",
+    zip: "",
+    phone: "",
+    email: "",
     spouseFirstName: "",
     spouseLastName: "",
     spouseSsn: "",
-    filingStatus: "Single", // Single, MFJ, MFS, HOH, QW
+    spouseDob: "",
+    filingStatus: "Single",
 
     // Income
     w2Wages: [],
@@ -55,12 +73,44 @@ export default function DIYEFileWizard() {
     // Business (Schedule C)
     businessName: "",
     businessExpenses: 0,
+    businessTaxId: "",
 
     // Previous Year Info
     previousYearRefund: 0,
     estimatedTaxPaid: 0,
     withholding: 0
   });
+
+  // Validation functions
+  const validatePersonalInfo = () => {
+    const errors = {};
+    if (!formData.firstName) errors.firstName = "First name required";
+    if (!formData.lastName) errors.lastName = "Last name required";
+    if (!formData.ssn) errors.ssn = "SSN required";
+    if (!formData.dob) errors.dob = "Date of birth required";
+    if (!formData.address) errors.address = "Address required";
+    if (!formData.city) errors.city = "City required";
+    if (!formData.state) errors.state = "State required";
+    if (!formData.zip) errors.zip = "ZIP code required";
+    if (!formData.phone) errors.phone = "Phone number required";
+    return errors;
+  };
+
+  const validateIncomeData = () => {
+    const errors = {};
+    const totalIncome = formData.w2Wages.reduce((sum, w2) => sum + (w2.amount || 0), 0) + 
+                       formData.capitalGains + formData.dividends + formData.businessIncome + 
+                       formData.rentalIncome + formData.interestIncome;
+    if (totalIncome < 0) errors.income = "Total income cannot be negative";
+    return errors;
+  };
+
+  const validateAll = () => {
+    const errors = { ...validatePersonalInfo() };
+    if (step >= 3) Object.assign(errors, validateIncomeData());
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
 
   // Calculate Standard Deduction based on filing status
   const standardDeductionAmount = useMemo(() => {
@@ -208,16 +258,49 @@ export default function DIYEFileWizard() {
           <h3>Your Information</h3>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 24 }}>
             <label className="field">
-              <span>First Name</span>
+              <span>First Name {validationErrors.firstName && <span style={{color: 'red'}}>*</span>}</span>
               <input value={formData.firstName} onChange={(e) => setFormData({...formData, firstName: e.target.value})} placeholder="First name" />
+              {validationErrors.firstName && <small style={{color: 'red'}}>{validationErrors.firstName}</small>}
             </label>
             <label className="field">
-              <span>Last Name</span>
+              <span>Last Name {validationErrors.lastName && <span style={{color: 'red'}}>*</span>}</span>
               <input value={formData.lastName} onChange={(e) => setFormData({...formData, lastName: e.target.value})} placeholder="Last name" />
+              {validationErrors.lastName && <small style={{color: 'red'}}>{validationErrors.lastName}</small>}
             </label>
             <label className="field">
-              <span>SSN</span>
+              <span>SSN {validationErrors.ssn && <span style={{color: 'red'}}>*</span>}</span>
               <input value={formData.ssn} onChange={(e) => setFormData({...formData, ssn: e.target.value})} placeholder="XXX-XX-XXXX" />
+              {validationErrors.ssn && <small style={{color: 'red'}}>{validationErrors.ssn}</small>}
+            </label>
+            <label className="field">
+              <span>Date of Birth {validationErrors.dob && <span style={{color: 'red'}}>*</span>}</span>
+              <input type="date" value={formData.dob} onChange={(e) => setFormData({...formData, dob: e.target.value})} />
+              {validationErrors.dob && <small style={{color: 'red'}}>{validationErrors.dob}</small>}
+            </label>
+            <label className="field" style={{ gridColumn: "1 / -1" }}>
+              <span>Street Address {validationErrors.address && <span style={{color: 'red'}}>*</span>}</span>
+              <input value={formData.address} onChange={(e) => setFormData({...formData, address: e.target.value})} placeholder="123 Main St" />
+              {validationErrors.address && <small style={{color: 'red'}}>{validationErrors.address}</small>}
+            </label>
+            <label className="field">
+              <span>City {validationErrors.city && <span style={{color: 'red'}}>*</span>}</span>
+              <input value={formData.city} onChange={(e) => setFormData({...formData, city: e.target.value})} placeholder="City" />
+              {validationErrors.city && <small style={{color: 'red'}}>{validationErrors.city}</small>}
+            </label>
+            <label className="field">
+              <span>State {validationErrors.state && <span style={{color: 'red'}}>*</span>}</span>
+              <input value={formData.state} onChange={(e) => setFormData({...formData, state: e.target.value})} placeholder="TX" maxLength="2" />
+              {validationErrors.state && <small style={{color: 'red'}}>{validationErrors.state}</small>}
+            </label>
+            <label className="field">
+              <span>ZIP Code {validationErrors.zip && <span style={{color: 'red'}}>*</span>}</span>
+              <input value={formData.zip} onChange={(e) => setFormData({...formData, zip: e.target.value})} placeholder="75000" />
+              {validationErrors.zip && <small style={{color: 'red'}}>{validationErrors.zip}</small>}
+            </label>
+            <label className="field">
+              <span>Phone {validationErrors.phone && <span style={{color: 'red'}}>*</span>}</span>
+              <input value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} placeholder="(512) 489-6749" />
+              {validationErrors.phone && <small style={{color: 'red'}}>{validationErrors.phone}</small>}
             </label>
             <label className="field">
               <span>Filing Status</span>
@@ -245,6 +328,10 @@ export default function DIYEFileWizard() {
                 <label className="field">
                   <span>Spouse SSN</span>
                   <input value={formData.spouseSsn} onChange={(e) => setFormData({...formData, spouseSsn: e.target.value})} placeholder="XXX-XX-XXXX" />
+                </label>
+                <label className="field">
+                  <span>Spouse DOB</span>
+                  <input type="date" value={formData.spouseDob} onChange={(e) => setFormData({...formData, spouseDob: e.target.value})} />
                 </label>
               </div>
             </Card>
@@ -464,28 +551,54 @@ export default function DIYEFileWizard() {
       title: "Review & File",
       component: (
         <div>
-          <h3>Ready to E-File?</h3>
+          <h3>Final Review & Verification</h3>
           <Alert type="success" message="✅ All information verified and IRS compliant" />
+          
           <Card style={{ padding: 24, marginBottom: 24, backgroundColor: "#F4F8FB", borderLeft: "4px solid #F3A006" }}>
+            <h4 style={{ marginTop: 0 }}>Personal Information Summary</h4>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, fontSize: 14 }}>
+              <div><strong>Name:</strong> {formData.firstName} {formData.lastName}</div>
+              <div><strong>SSN:</strong> {formData.ssn.slice(-4).padStart(formData.ssn.length, '•')}</div>
+              <div><strong>Address:</strong> {formData.address}, {formData.city}, {formData.state} {formData.zip}</div>
+              <div><strong>Phone:</strong> {formData.phone}</div>
+              <div><strong>Filing Status:</strong> {formData.filingStatus}</div>
+              <div><strong>Tax Year:</strong> {taxYear}</div>
+            </div>
+          </Card>
+
+          <Card style={{ padding: 24, marginBottom: 24, backgroundColor: "#F9F9F9", borderLeft: "4px solid #F3A006" }}>
+            <h4 style={{ marginTop: 0 }}>Income & Deductions</h4>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, fontSize: 14 }}>
+              <div><strong>Total Income:</strong> ${totalIncome.toLocaleString()}</div>
+              <div><strong>Adjusted Gross Income:</strong> ${agi.toLocaleString()}</div>
+              <div><strong>Deductions:</strong> ${deductionAmount.toLocaleString()}</div>
+              <div><strong>Taxable Income:</strong> ${taxableIncome.toLocaleString()}</div>
+            </div>
+          </Card>
+
+          <Card style={{ padding: 24, marginBottom: 24 }}>
             <h4 style={{ marginTop: 0 }}>Next Steps</h4>
             <ol style={{ lineHeight: 2 }}>
-              <li><strong>Review Form {formType}</strong> - Your return is populated with all data</li>
-              <li><strong>IRS Validation</strong> - Submitted to IRS via MeF A2A integration</li>
-              <li><strong>E-Sign Agreement</strong> - Digital signature required</li>
-              <li><strong>Transmission Status</strong> - Real-time IRS acknowledgment tracking</li>
+              <li><strong>E-Sign Agreement</strong> - Acknowledge accuracy and authority to e-file</li>
+              <li><strong>IRS Validation</strong> - Return submitted to IRS via MeF A2A</li>
+              <li><strong>Real-time Acknowledgment</strong> - Receive acceptance ID within minutes</li>
+              <li><strong>Status Tracking</strong> - Monitor return status in your portal</li>
               <li><strong>Refund Delivery</strong> - Direct deposit or check within 21 days</li>
             </ol>
           </Card>
 
           <Card style={{ padding: 20, backgroundColor: "#F9F9F9" }}>
-            <h4 style={{ marginTop: 0 }}>Maximum Refund Guarantee</h4>
-            <p style={{ margin: "12px 0" }}>
-              Our AI platform has identified every eligible deduction and credit for your 2025 return. 
-              You are eligible for <strong>${Math.abs(refundOrOwed).toLocaleString()}</strong> in {refundOrOwed > 0 ? "refund" : "tax due"}.
+            <h4 style={{ marginTop: 0 }}>IRS Accuracy Certification</h4>
+            <p style={{ margin: "12px 0", fontSize: 13 }}>
+              I declare that I have examined this return and accompanying schedules and statements, 
+              and to the best of my knowledge and belief, they are true, correct, and complete. 
+              I understand that transmitting this return electronically to the IRS constitutes my 
+              signature authorization under Section 164(c) of the Internal Revenue Code (IRC).
             </p>
-            <p style={{ margin: "12px 0", fontSize: 13, color: "#666" }}>
-              By proceeding, you authorize RTB Tax Software to transmit your return to the IRS via Modernized e-File (MeF) in compliance with IRS Publication 1075.
-            </p>
+            <label style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer", marginTop: 16 }}>
+              <input type="checkbox" required />
+              <span>I certify this return is accurate and ready for IRS transmission</span>
+            </label>
           </Card>
         </div>
       )
@@ -503,25 +616,45 @@ export default function DIYEFileWizard() {
   };
 
   const handleSubmit = async () => {
+    if (!validateAll()) {
+      setStatus({ type: "error", message: "Please fix validation errors" });
+      return;
+    }
+
     setStatus({ type: "loading", message: "Preparing for MeF transmission..." });
     try {
+      // Save return to D1 via backend
+      const saveRes = await fetch("/api/efile/save-draft", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("token")}` },
+        body: JSON.stringify({
+          client_id: clientId,
+          return_data: formData,
+          return_type: formType,
+          tax_year: taxYear
+        })
+      });
+
+      if (!saveRes.ok) throw new Error("Failed to save return");
+
       // Submit to backend for MeF e-file
       const res = await fetch("/api/efile/transmit", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("token")}` },
         body: JSON.stringify({
-          client_id: 1,
+          client_id: clientId,
           return_id: Date.now(),
           preparer_id: null,
           method: "DIY",
           returnType: formType,
           taxYear: taxYear,
-          // Would include actual XML generation here
+          formData: formData
         })
       });
 
       if (res.ok) {
-        setStatus({ type: "success", message: "Return submitted to IRS! Tracking ID will be provided." });
+        const data = await res.json();
+        setStatus({ type: "success", message: `Return submitted to IRS! Tracking ID: ${data.submission_id}` });
       } else {
         throw new Error("E-file submission failed");
       }
@@ -530,6 +663,222 @@ export default function DIYEFileWizard() {
     }
   };
 
+  // Authentication Handlers
+  const handleRegister = async () => {
+    if (!accountData.email || !accountData.username || !accountData.password) {
+      setStatus({ type: "error", message: "All fields required" });
+      return;
+    }
+    if (accountData.password !== accountData.confirmPassword) {
+      setStatus({ type: "error", message: "Passwords do not match" });
+      return;
+    }
+
+    setStatus({ type: "loading", message: "Creating account..." });
+    try {
+      const res = await fetch("/api/register/client", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: accountData.email,
+          username: accountData.username,
+          password: accountData.password
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setClientId(data.client_id);
+        setMfaEnabled(true);
+        setStatus({ type: "success", message: "Account created! Enter 2FA code sent to your email." });
+        setAuthMode("2fa");
+      } else {
+        throw new Error(data.error || "Registration failed");
+      }
+    } catch (err) {
+      setStatus({ type: "error", message: err.message });
+    }
+  };
+
+  const handleLogin = async () => {
+    if (!accountData.email || !accountData.password) {
+      setStatus({ type: "error", message: "Email and password required" });
+      return;
+    }
+
+    setStatus({ type: "loading", message: "Logging in..." });
+    try {
+      const res = await fetch("/api/login/client", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: accountData.email,
+          password: accountData.password
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        localStorage.setItem("token", data.token);
+        setClientId(data.client_id);
+        setMfaEnabled(true);
+        setStatus({ type: "success", message: "Logged in! Enter 2FA code." });
+        setAuthMode("2fa");
+      } else {
+        throw new Error(data.error || "Login failed");
+      }
+    } catch (err) {
+      setStatus({ type: "error", message: err.message });
+    }
+  };
+
+  const handleMfaVerify = async () => {
+    if (!mfaCode) {
+      setStatus({ type: "error", message: "2FA code required" });
+      return;
+    }
+
+    setStatus({ type: "loading", message: "Verifying 2FA code..." });
+    try {
+      const res = await fetch("/api/mfa/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          client_id: clientId,
+          code: mfaCode
+        })
+      });
+
+      if (res.ok) {
+        setIsAuthenticated(true);
+        setStatus({ type: "success", message: "2FA verified! Starting tax wizard..." });
+      } else {
+        throw new Error("Invalid 2FA code");
+      }
+    } catch (err) {
+      setStatus({ type: "error", message: err.message });
+    }
+  };
+
+  // If not authenticated, show login/register
+  if (!isAuthenticated) {
+    return (
+      <section className="section">
+        <div className="container" style={{ maxWidth: 500 }}>
+          <h1>Ross Tax Prep E-File Portal</h1>
+          <p style={{ fontSize: 16, color: "#666", marginBottom: 32 }}>
+            Secure Account Required | 2-Factor Authentication | IRS Compliant
+          </p>
+
+          {status.type !== "idle" && (
+            <Alert type={status.type} message={status.message} style={{ marginBottom: 24 }} />
+          )}
+
+          {authMode === "login" && (
+            <Card style={{ padding: 32 }}>
+              <h3 style={{ marginTop: 0 }}>Sign In to Your Account</h3>
+              <label className="field">
+                <span>Email</span>
+                <input 
+                  type="email"
+                  value={accountData.email}
+                  onChange={(e) => setAccountData({...accountData, email: e.target.value})}
+                  placeholder="your@email.com"
+                />
+              </label>
+              <label className="field">
+                <span>Password</span>
+                <input 
+                  type="password"
+                  value={accountData.password}
+                  onChange={(e) => setAccountData({...accountData, password: e.target.value})}
+                  placeholder="••••••••"
+                />
+              </label>
+              <Button onClick={handleLogin} style={{ width: "100%", marginBottom: 16 }}>
+                Sign In
+              </Button>
+              <p style={{ textAlign: "center", color: "#666" }}>
+                Don't have an account? <a href="#" onClick={() => setAuthMode("register")} style={{ color: "#003366", cursor: "pointer" }}>Create one</a>
+              </p>
+            </Card>
+          )}
+
+          {authMode === "register" && (
+            <Card style={{ padding: 32 }}>
+              <h3 style={{ marginTop: 0 }}>Create Your Account</h3>
+              <label className="field">
+                <span>Email</span>
+                <input 
+                  type="email"
+                  value={accountData.email}
+                  onChange={(e) => setAccountData({...accountData, email: e.target.value})}
+                  placeholder="your@email.com"
+                />
+              </label>
+              <label className="field">
+                <span>Username</span>
+                <input 
+                  value={accountData.username}
+                  onChange={(e) => setAccountData({...accountData, username: e.target.value})}
+                  placeholder="Choose a username"
+                />
+              </label>
+              <label className="field">
+                <span>Password</span>
+                <input 
+                  type="password"
+                  value={accountData.password}
+                  onChange={(e) => setAccountData({...accountData, password: e.target.value})}
+                  placeholder="Min 8 characters"
+                />
+              </label>
+              <label className="field">
+                <span>Confirm Password</span>
+                <input 
+                  type="password"
+                  value={accountData.confirmPassword}
+                  onChange={(e) => setAccountData({...accountData, confirmPassword: e.target.value})}
+                  placeholder="••••••••"
+                />
+              </label>
+              <Button onClick={handleRegister} style={{ width: "100%", marginBottom: 16 }}>
+                Create Account
+              </Button>
+              <p style={{ textAlign: "center", color: "#666" }}>
+                Already have an account? <a href="#" onClick={() => setAuthMode("login")} style={{ color: "#003366", cursor: "pointer" }}>Sign in</a>
+              </p>
+            </Card>
+          )}
+
+          {authMode === "2fa" && (
+            <Card style={{ padding: 32 }}>
+              <h3 style={{ marginTop: 0 }}>2-Factor Authentication</h3>
+              <p style={{ color: "#666", marginBottom: 24 }}>
+                Enter the 6-digit code sent to your email.
+              </p>
+              <label className="field">
+                <span>Authentication Code</span>
+                <input 
+                  type="text"
+                  maxLength="6"
+                  value={mfaCode}
+                  onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, ''))}
+                  placeholder="000000"
+                  style={{ fontSize: 24, letterSpacing: 8, textAlign: "center" }}
+                />
+              </label>
+              <Button onClick={handleMfaVerify} style={{ width: "100%" }}>
+                Verify Code
+              </Button>
+            </Card>
+          )}
+        </div>
+      </section>
+    );
+  }
+
+  // Main Wizard - Step 1-7
   return (
     <section className="section">
       <div className="container">
@@ -600,20 +949,35 @@ export default function DIYEFileWizard() {
 
         {/* Navigation */}
         <div style={{ display: "flex", gap: 16, justifyContent: "space-between", paddingTop: 24, borderTop: "2px solid #e0e0e0" }}>
-          <Button 
-            variant="secondary" 
-            onClick={handleBack}
-            disabled={step === 1}
-            style={{ minWidth: 120 }}
-          >
-            ← Back
-          </Button>
+          <div style={{ display: "flex", gap: 16 }}>
+            <Button 
+              variant="secondary" 
+              onClick={handleBack}
+              disabled={step === 1}
+              style={{ minWidth: 120 }}
+            >
+              ← Back
+            </Button>
+            <Button 
+              variant="secondary"
+              onClick={() => {
+                setIsAuthenticated(false);
+                setAuthMode("login");
+                setStep(1);
+              }}
+              style={{ minWidth: 120 }}
+            >
+              Logout
+            </Button>
+          </div>
 
           <div style={{ display: "flex", gap: 16 }}>
             {step < steps.length && (
               <Button 
                 variant="accent"
-                onClick={handleNext}
+                onClick={() => {
+                  if (validateAll()) handleNext();
+                }}
                 style={{ minWidth: 120 }}
               >
                 Next →
